@@ -9,6 +9,49 @@ html, body {
   background: #f8f9fa;
 }
 
+.hero {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: left;
+  padding: 6rem 8vw;
+  background: #f8f9fa;
+  color: #111;
+}
+
+.hero header,
+.hero .hero-body {
+  max-width: 780px;
+  width: 100%;
+}
+
+.hero header h1 {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.hero header p {
+  font-size: 1.1rem;
+  margin: 0 0 1.5rem;
+  color: #333;
+}
+
+.hero .hero-body h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.hero .hero-body p {
+  font-size: 1rem;
+  line-height: 1.8;
+  margin: 0;
+  color: #333;
+}
+
 /* === 地图固定底层 === */
 #map {
   position: fixed;
