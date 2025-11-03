@@ -1,0 +1,130 @@
+/* =======================
+   StoryMap vertical scroll layout
+   ======================= */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f8f9fa;
+}
+
+/* === 地图固定底层 === */
+#map {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 0;
+}
+
+/* === 文字层盖在地图上 === */
+#story {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+/* === 每个章节竖排堆叠 === */
+section.chapter {
+  position: relative;
+  width: 25%;           /* 占页面宽度的 1/4 */
+  margin-left: auto;    /* 靠右 */
+  margin-right: 2%;     /* 与右边留一点空 */
+  display: block;
+  max-width: 460px;
+  padding: 20px;
+  margin: 40vh auto; /* 居中滚动触发 */
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(3px);
+  border-radius: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  line-height: 1.6;
+  color: #111;
+}
+
+/* 让其他章节内容竖直滚动显示 */
+#story {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; /* 章节靠右 */
+}
+
+/* === 左右/居中控制 === */
+section.chapter.left {
+  margin-left: 6vw;
+}
+section.chapter.right {
+  margin-left: auto;
+  margin-right: 6vw;
+}
+section.chapter.full {
+  max-width: 820px;
+  margin: 20vh auto;
+}
+
+/* === 当前章节高亮 === */
+section.chapter.active {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35) inset,
+              0 2px 10px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+/* === 标题与文字 === */
+section.chapter h1,
+section.chapter h2,
+section.chapter h3 {
+  margin-top: 0;
+  font-weight: 700;
+  color: #111;
+}
+section.chapter p {
+  margin: 10px 0 0;
+  font-size: 15px;
+  color: #333;
+}
+
+/* === 半透明文字块（可选：让文字更清晰） === */
+section.chapter.active h2,
+section.chapter.active p {
+  background: rgba(255, 255, 255, 0.9);
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* === Header/Footer 样式（可选） === */
+header, footer {
+  max-width: 600px;
+  margin: 2rem auto;
+  text-align: left;
+  color: #222;
+}
+header h1 {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+footer p {
+  font-size: 13px;
+  color: #555;
+}
+
+/* === 小屏自适应 === */
+@media (max-width: 900px) {
+  section.chapter {
+    max-width: 90%;
+    margin: 0 auto;
+  }
+  section.chapter.left,
+  section.chapter.right {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #story {
+    align-items: center;
+  }
+}
