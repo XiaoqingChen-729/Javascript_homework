@@ -14,62 +14,73 @@
     <header>
        <h1>
         <span class="title-main">The Great Migration</span>
-        <span class="title-secondary">Background</span>
-      </h1>
-      <p class="title-description">
-        Every year, as if following a secret calendar, more than a million wildebeest, zebras, and gazelles march across the East African savanna. 
-        Why do they go? Well, imagine if your dinner kept walking away — you'd chase it too! The rains draw them north, painting the dry land green again. 
-        Rivers swell, grass grows, and suddenly, the plain becomes a moving feast. From above, the herds look like dark ribbons weaving across a sea of gold. 
-        It's not just a journey; it's the heartbeat of the savanna. Yet danger lurks — crocodiles in the rivers, lions in the shadows — reminding us that here, 
-        every step is a gamble in the great game of survival.
-      </p>
+        </div>
+      <p class="hero-lede">Tracking wildebeest across the Serengeti-Masai Mara and the cascading responses of predators and people.</p>
       <div class="hero-meta">
         <p>Xiaoqing Chen</p>
         <p>03 Nov 2025</p>
-      </div>
-      <p class="hero-lede">Tracking wildebeest across the Serengeti-Masai Mara and the cascading responses of predators and people.</p>
+
+        <span class="title-secondary">Background</span>
+      </h1>
+      <p class="title-description">
+        Every year, as if following a secret calendar, more than a million wildebeest, zebras, and gazelles march across the East African savanna.
+        Why do they go? Well, imagine if your dinner kept walking away — you'd chase it too! The rains draw them north, painting the dry land green again.
+        Rivers swell, grass grows, and suddenly, the plain becomes a moving feast. From above, the herds look like dark ribbons weaving across a sea of gold.
+        It's not just a journey; it's the heartbeat of the savanna. Yet danger lurks — crocodiles in the rivers, lions in the shadows — reminding us that here,
+        every step is a gamble in the great game of survival.
+      </p>
+      
     </header>
     <div class="hero-body">
       <h2>Greater Mara Ecosystem</h2>
+      <p>
+        Welcome to the Maasai Mara — nature's grand stage, where everyone has a role to play.
+        The wildebeest are the restless travelers, zebras the striped companions, and lions... well,
+        the “dinner critics.” Here, the land breathes with rhythm: rain brings life, drought tests endurance.
+        Each species, from tiny dung beetles to towering elephants, is part of a delicate balance.
+        When the herds arrive, predators sharpen their senses, knowing that the feast — and the challenge — has begun.
+        The Mara is not just a place on the map; it's a living story of hunger, hope, and harmony, rewritten every season beneath the blazing African sun.
+      </p>
     </div>
   </section>
 
-    <div class="hero-body">
-      <h2>Background</h2>
-      <p>
-        Welcome to the Maasai Mara — nature's grand stage, where everyone has a role to play. 
-        The wildebeest are the restless travelers, zebras the striped companions, and lions... well, 
-        the “dinner critics.” Here, the land breathes with rhythm: rain brings life, drought tests endurance. 
-        Each species, from tiny dung beetles to towering elephants, is part of a delicate balance. 
-        When the herds arrive, predators sharpen their senses, knowing that the feast — and the challenge — has begun. 
-        The Mara is not just a place on the map; it's a living story of hunger, hope, and harmony, rewritten every season beneath the blazing African sun.
-      </p>
-      </div>
-    </section>
+  <main class="storymap">
+    <div id="map" class="map"></div>
+    <div id="story" class="story">
+      <section class="chapter" id="intro">
+        <h2>The Great Migration</h2>
+        <p>East Africa's savanna runs on a wet-dry rhythm. Wildebeest track the rains; predators respond in sync.</p>
+      </section>
 
-    <div id="map"></div>
-    <div id="story"></div>
-      <section class="chapter" id="wildebeest">
-      <h2>Wildebeest Migration</h2>
-      <p>These tracks show seasonal movements following rainfall patterns.</p>
-    </section>
+     <section class="chapter" id="dry-season">
+        <h2>Dry Season (Jun-Sep)</h2>
+        <p>Herds concentrate in the Mara grasslands along perennial water. Tracks tighten northward.</p>
+      </section>
 
-    <section class="chapter" id="tsavo lion">
-      <h2>Lion Dynamics</h2>
-      <p>Evidence shows predators adjust activity areas as prey availability changes.</p>
-    </section>
+      <section class="chapter" id="short-rains">
+        <h2>Short Rains (Oct-Nov)</h2>
+        <p>Moisture returns and herds arc southward through the corridor.</p>
+      </section>
 
-    <section class="chapter" id="conclusion">
-      <h2>Why It Matters</h2>
-      <p>Protecting migration corridors preserves an entire food web.</p>
-    </section>
-  </div>
+   <section class="chapter" id="wet-season">
+        <h2>Wet Season (Dec-Mar)</h2>
+        <p>Calving on the southern short-grass plains; herds spread with fresh forage.</p>
+      </section>
+
+      <section class="chapter" id="lion">
+        <h2>Predator Dynamics: Tsavo Lions</h2>
+        <p>Hundreds of kilometers east, lion activity shifts with the same dry–wet cycle.</p>
+      </section>
+
+      <section class="chapter" id="conclusion">
+        <h2>Why It Matters</h2>
+        <p>Protecting rain-driven corridors safeguards an entire food web.</p>
+        <p class="small">Data: Movebank (processed to GeoJSON). Author: You.</p>
+      </section>
+    </div>
+  </main>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="./js/app.js"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
   <script src="./js/config.js"></script>
   <script src="./js/map.js"></script>
   <script src="./js/app.js"></script>

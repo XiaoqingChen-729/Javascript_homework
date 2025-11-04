@@ -8,7 +8,7 @@ html, body {
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 18px;
   line-height: 1.7;
-  background: #f8f9fa;
+  background: #fffcf2;
   color: #111;
 }
 
@@ -22,9 +22,8 @@ html, body {
   justify-content: center;
   align-items: flex-start;
   gap: 1.75rem;
-  text-align: left;
   padding: 6rem 12vw 6rem 10vw;
-  background: #f8f9fa;
+  background: #fffcf2;
 }
 
 .hero header,
@@ -38,6 +37,7 @@ html, body {
   flex-direction: column;
   align-items: flex-start;
   gap: 1.1rem;
+  margin-bottom: 2rem;
 }
 
 .hero-tagline {
@@ -60,16 +60,15 @@ html, body {
 }
 
 .hero header h1 .title-secondary {
-  font-weight: 500;
-  color: #6c757d;
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  margin-top: 0.35rem;
+  font-weight: 700;
+  color: #111;
+  font-size: clamp(1.75rem, 3vw, 2.4rem);
+  margin-top: 1rem;
 }
 
 .hero header h1 .title-secondary-copy {
   display: block;
-  margin-top: 0.75rem;
-  font-size: 1.05rem;
+
   line-height: 1.7;
   font-weight: 400;
   color: #2f3542;
@@ -81,7 +80,7 @@ html, body {
   gap: 0.1rem;
   margin: 1.5rem 0 1.5rem;
   font-size: 0.95rem;
-  color: #6c757d;
+  color: #2f3542;
 }
 
 .hero-meta p {
@@ -92,6 +91,12 @@ html, body {
   font-size: 1.2rem;
   margin: 0;
   color: #2f3542;
+}
+
+.hero .hero-body {
+  text-align: left;
+  margin: 0;
+  padding-top: 1rem;
 }
 
 .hero .hero-body h2 {
@@ -193,6 +198,12 @@ section.chapter p {
   font-size: 1.05rem;
   color: #333;
 }
+
+section.chapter p.small {
+  font-size: 0.95rem;
+  color: #555;
+}
+
 
 /* === 半透明文字块（可选：让文字更清晰） === */
 section.chapter.active h2,
