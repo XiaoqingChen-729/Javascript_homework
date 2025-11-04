@@ -68,7 +68,8 @@ html, body {
 
 .hero header h1 .title-secondary-copy {
   display: block;
-
+  margin-top: 0.75rem;
+  font-size: 1.05rem;
   line-height: 1.7;
   font-weight: 400;
   color: #2f3542;
