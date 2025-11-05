@@ -10,6 +10,7 @@ html, body {
   line-height: 1.7;
   background: #fffcf2;
   color: #111;
+  overflow-x: hidden;
 }
 
 /* === 首屏 Overview === */
@@ -30,6 +31,15 @@ html, body {
 .hero .hero-body {
   max-width: 760px;
   width: 100%;
+}
+
+.hero-content {
+  width: 100%;
+  max-width: 760px;
+}
+
+.hero-gallery {
+  display: none;
 }
 
 .hero header {
@@ -118,6 +128,28 @@ html, body {
 
 .hero .hero-body-copy {
   margin-top: 1rem;
+}
+
+.hero-gallery .hero-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(17, 17, 17, 0.18);
+}
+
+.hero-gallery .hero-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-gallery .hero-photo--primary {
+  aspect-ratio: 4 / 5;
+}
+
+.hero-gallery .hero-photo--secondary {
+  aspect-ratio: 5 / 4;
 }
 
 /* === 地图固定底层 === */
@@ -288,5 +320,30 @@ footer p {
   #story {
     align-items: flex-start;
     padding: 0 6vw;
+  }
+}
+
+@media (min-width: 1040px) {
+  .hero {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 4rem;
+    padding: 6rem 10vw;
+  }
+
+  .hero-content {
+    flex: 1 1 55%;
+    max-width: 720px;
+  }
+
+  .hero-gallery {
+    display: grid;
+    flex: 1 1 35%;
+    gap: 1.5rem;
+    align-content: center;
+  }
+
+  .hero-gallery .hero-photo--secondary:last-of-type {
+    margin-left: 4rem;
   }
 }
