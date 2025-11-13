@@ -30,18 +30,29 @@ window.addEventListener('load', () => {
   maraSerengetiBoundary.__baseOpacity = maraSerengetiBoundary.options.opacity ?? 1;
   maraSerengetiBoundary.__baseFillOpacity = maraSerengetiBoundary.options.fillOpacity ?? 1;
   LAYERS['Mara_Serengeti_Boundary'] = maraSerengetiBoundary;
-  setLayerOpacity('Mara_Serengeti_Boundary', 0);
 
   function setLayerOpacity(layerId, opacity) {
-    const layer = LAYERS[layerId];
-    if (!layer) return;
-    layer.eachLayer(l => {
-      if (l.setStyle) {
-        l.setStyle({ opacity, fillOpacity: opacity });
-      }
-    });
-  }
+  const layer = LAYERS[layerId];
+  if (!layer) return;
 
+  const apply = (l) => {
+    // 向量要素（Path 类型）优先用 setStyle
+    if (typeof l.setStyle === 'function') {
+      l.setStyle({ opacity, fillOpacity: opacity });
+    } else if (typeof l.setOpacity === 'function') {
+      // 个别插件/瓦片图层可能只有 setOpacity
+      l.setOpacity(opacity);
+    }
+  };
+
+  if (typeof layer.eachLayer === 'function') {
+    // FeatureGroup / GeoJSON
+    layer.eachLayer(apply);
+  } else {
+    // Circle / Marker / Polygon 等单图层
+    apply(layer);
+  }
+}
   const trackFeaturesBySource = new Map();
   let trackLayer = null;
   let requestedTrackSource = 'ALL';

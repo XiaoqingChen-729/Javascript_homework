@@ -454,6 +454,7 @@ footer p {
   .hero-lede,
   .title-description {
     font-size: 1rem;
+    line-height: 1.2;
   }
 
   #story {

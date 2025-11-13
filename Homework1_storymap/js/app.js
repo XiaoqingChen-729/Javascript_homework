@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const chapters = Array.from(document.querySelectorAll('section.chapter'));
-   if (!chapters.length) return;
+  if (!chapters.length) return;
 
   let activeChapter = null;
   let observer = null;
@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       window.__pendingChapterId = activeChapter.id;
     }
+  }
 
   function handleEntries(entries) {
     const visible = entries
@@ -51,9 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
       root: null,
       threshold: thresholds,
       rootMargin: computeRootMargin()
-      });
+    });
 
-      chapters.forEach(chapter => observer.observe(chapter));
+    chapters.forEach(chapter => observer.observe(chapter));
   }
 
   function scheduleObserverRefresh() {
@@ -74,5 +75,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.addEventListener('resize', scheduleObserverRefresh);
-}
 });
+

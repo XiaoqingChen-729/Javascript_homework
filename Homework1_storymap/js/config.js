@@ -32,7 +32,7 @@ window.storyConfig = {
       ]
     },
 
-    // 旱季 6–9：北迁至 Mara
+    // Dry season 6–9：Move north to Mara
     {
       id: "dry-season",
       alignment: "right",
@@ -55,6 +55,7 @@ window.storyConfig = {
       focusMaxZoom: 9,
       focusPadding: [36, 36],
       onChapterEnter: [
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
         { layer: "Wildebeest_Dry_clean",   opacity: 0.9 },
         { layer: "Wildebeest_Short_clean", opacity: 0.0 },
         { layer: "Wildebeest_Wet_clean",   opacity: 0.0 },
@@ -69,7 +70,7 @@ window.storyConfig = {
       ]
     },
 
-    // 短雨季 10–11：开始回南
+    // Short rain season 10–11：Turn to south
     {
       id: "short-rains",
       alignment: "left",
@@ -92,6 +93,7 @@ window.storyConfig = {
       focusMaxZoom: 9,
       focusPadding: [36, 36],
       onChapterEnter: [
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
         { layer: "Wildebeest_Dry_clean",   opacity: 0.0 },
         { layer: "Wildebeest_Short_clean", opacity: 0.9 },
         { layer: "Wildebeest_Wet_clean",   opacity: 0.0 },
@@ -105,7 +107,7 @@ window.storyConfig = {
       ]
     },
 
-    // 雨季 12–3：南部繁育
+    // Wet season 12–3：brithing on southern plains
     {
       id: "wet-season",
       alignment: "right",
@@ -128,6 +130,7 @@ window.storyConfig = {
       focusMaxZoom: 12,
       focusPadding: [36, 36],
       onChapterEnter: [
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
         { layer: "Wildebeest_Wet_clean",   opacity: 0.9 },
         { layer: "Wildebeest_Dry_clean",   opacity: 0.0 },
         { layer: "Wildebeest_Short_clean", opacity: 0.0 },
@@ -142,7 +145,7 @@ window.storyConfig = {
       ]
     },
 
-    // 旱季初 4-5：向西北迁移
+    // Early dry season 4-5：Move south through corridor
     {
       id: "early-dry",
       alignment: "right",
@@ -150,11 +153,22 @@ window.storyConfig = {
         <h3>Early Dry (Apr-May)</h3>
         <p>Moisture returns and herds arc southward through the corridor.</p>
         `,
-      location: { center: [35.10, -2.10], zoom: 7, pitch: 0, bearing: 0 },
+      location: {
+        center: [34.90, -2.10],
+        zoom: 7,
+        pitch: 0,
+        bearing: 0,
+        bounds: [
+          [34.70, -3.55],
+          [35.95, -1.00]
+        ],
+        padding: [60, 60]
+      },
       focusLayers: ["Wildebeest_AprMay"],    // 
-      focusMaxZoom: 9,
+      focusMaxZoom: 12,
       focusPadding: [36, 36],
       onChapterEnter: [
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
         { layer: "Wildebeest_Dry_clean",   opacity: 0.0 }, 
         { layer: "Wildebeest_Short_clean", opacity: 0.0 }, 
         { layer: "Wildebeest_Wet_clean",   opacity: 0.0 },
@@ -169,7 +183,7 @@ window.storyConfig = {
     },
   
 
-    // 平行生态：Tsavo 狮子
+    // Balanced ecosystem：Tsavo lions respond
     {
       id: "lion",
       alignment: "left",
@@ -197,7 +211,7 @@ window.storyConfig = {
       ]
     },
 
-    // 结尾
+    // Conclusion：Protecting corridors
     {
       id: "conclusion",
       alignment: "full",
