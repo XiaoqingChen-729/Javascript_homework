@@ -26,9 +26,9 @@ window.storyConfig = {
       ],
       onChapterExit: [
         { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
-        { layer: "Wildebeest_Tanzania_BG", opacity: 0.05 },
+        { layer: "Wildebeest_Tanzania_BG", opacity: 0.0 },
         { layer: "Tsavo_Lion",             opacity: 0.0 },
-        { layer: "Tsavo_Lion_Tracks",      opacity: 0 }
+        { layer: "Tsavo_Lion_Tracks",      opacity: 0.0 }
       ]
     },
 
