@@ -18,14 +18,42 @@ window.addEventListener('load', () => {
   const LAYERS = {};
   let currentChapterId = null;
 
+  // Mara-Serengeti 范围界限图层（用于引导页聚焦区域）
+   const maraSerengetiBoundary = L.circle([-2.2, 35.15], {
+    radius: 190000,
+    color: '#16a34a',
+    weight: 2,
+    opacity: 0.9,
+    fillColor: '#16a34a',
+    fillOpacity: 0.25
+  }).addTo(map);
+  maraSerengetiBoundary.__baseOpacity = maraSerengetiBoundary.options.opacity ?? 1;
+  maraSerengetiBoundary.__baseFillOpacity = maraSerengetiBoundary.options.fillOpacity ?? 1;
+  LAYERS['Mara_Serengeti_Boundary'] = maraSerengetiBoundary;
+  setLayerOpacity('Mara_Serengeti_Boundary', 0);
+
   function setLayerOpacity(layerId, opacity) {
     const layer = LAYERS[layerId];
     if (!layer) return;
-    layer.eachLayer(l => {
-      if (l.setStyle) {
-        l.setStyle({ opacity, fillOpacity: opacity });
+    
+    const apply = target => {
+      if (target.setStyle) {
+        const baseOpacity = typeof target.__baseOpacity === 'number' ? target.__baseOpacity : 1;
+        const baseFillOpacity = typeof target.__baseFillOpacity === 'number' ? target.__baseFillOpacity : 1;
+        target.setStyle({
+          opacity: baseOpacity * opacity,
+          fillOpacity: baseFillOpacity * opacity
+        });
+      } else if (typeof target.setOpacity === 'function') {
+        target.setOpacity(opacity);
       }
-    });
+    };
+
+    if (typeof layer.eachLayer === 'function') {
+      layer.eachLayer(apply);
+    } else {
+      apply(layer);
+    }
   }
 
   const trackFeaturesBySource = new Map();
@@ -127,7 +155,7 @@ window.addEventListener('load', () => {
         reapplyFocusIfNeeded(id);
       })
       .catch(err => {
-        console.error(`❌ GeoJSON load failed: ${id} <- ${url}\n`, err);
+        console.error(`GeoJSON load failed: ${id} <- ${url}\n`, err);
       });
   }
   function addLineLayer(id, url, color) {
@@ -142,7 +170,7 @@ window.addEventListener('load', () => {
         console.log(`✅ Loaded: ${id} <- ${url}  (features: ${gj.features?.length ?? 'unknown'})`);
         reapplyFocusIfNeeded(id);
       })
-      .catch(err => console.error(`❌ GeoJSON load failed: ${id} <- ${url}\n`, err));
+      .catch(err => console.error(`GeoJSON load failed: ${id} <- ${url}\n`, err));
   }
 
   // 4) 加载你的数据（路径以 index.html 为基准）
@@ -163,6 +191,23 @@ window.addEventListener('load', () => {
     };
 
     const allTrackEntries = new Map();
+    const trackExtent = {
+      minLat: Infinity,
+      maxLat: -Infinity,
+      minLng: Infinity,
+      maxLng: -Infinity
+    };
+
+    F.forEach(f => {
+      const coords = f.geometry?.coordinates;
+      if (!Array.isArray(coords) || coords.length < 2) return;
+      const [lng, lat] = coords;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      if (lat < trackExtent.minLat) trackExtent.minLat = lat;
+      if (lat > trackExtent.maxLat) trackExtent.maxLat = lat;
+      if (lng < trackExtent.minLng) trackExtent.minLng = lng;
+      if (lng > trackExtent.maxLng) trackExtent.maxLng = lng;
+    });
 
     const collectTrackEntry = (feature, fallbackIndex, targetMap) => {
       if (!feature || feature.geometry?.type !== 'Point') return;

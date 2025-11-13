@@ -14,15 +14,20 @@ window.storyConfig = {
         ],
         padding: [60, 60]
       },
-      focusLayers: ["Wildebeest_Tracks"],
+      focusLayers: ["Mara_Serengeti_Boundary"],
       focusMaxZoom: 8,
       focusPadding: [48, 48],
       onChapterEnter: [
-        { layer: "Wildebeest_Tanzania_BG", opacity: 0.2 },
-        { layer: "Tsavo_Lion_Tracks",      opacity: 0.05 }
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.9 },
+        { layer: "Wildebeest_Tanzania_BG", opacity: 0.0 },
+        { layer: "Wildebeest_Tracks",      opacity: 0.0 },
+        { layer: "Tsavo_Lion",             opacity: 0.0 },
+        { layer: "Tsavo_Lion_Tracks",      opacity: 0.0 }
       ],
       onChapterExit: [
+        { layer: "Mara_Serengeti_Boundary",opacity: 0.0 },
         { layer: "Wildebeest_Tanzania_BG", opacity: 0.05 },
+        { layer: "Tsavo_Lion",             opacity: 0.0 },
         { layer: "Tsavo_Lion_Tracks",      opacity: 0 }
       ]
     },

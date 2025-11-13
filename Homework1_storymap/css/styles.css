@@ -416,7 +416,7 @@ footer p {
 /* === 小屏自适应 === */
 @media (max-width: 900px) {
   section.chapter {
-    max-width: 100%;
+    max-width: min(74vw, 520px);
     margin: 20vh 0;
   }
   section.chapter.left,
@@ -427,6 +427,74 @@ footer p {
   #story {
     align-items: flex-start;
     padding: 0 6vw;
+    }
+}
+
+@media (max-width: 680px) {
+  html,
+  body {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .hero {
+    padding: 4rem 6vw 2rem;
+  }
+
+  .hero header h1 {
+    font-size: clamp(2.4rem, 8vw, 3rem);
+  }
+
+  .hero .hero-body h2 {
+    font-size: clamp(1.8rem, 6vw, 2.2rem);
+  }
+
+  .hero .hero-body p,
+  .hero-lede,
+  .title-description {
+    font-size: 1rem;
+  }
+
+  #story {
+    padding: 0 5vw 12vh;
+    align-items: center;
+  }
+
+  section.chapter {
+    max-width: 92vw;
+    margin: 54vh auto 8vh;
+    padding: 0.9rem 1.1rem;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  }
+
+  section.chapter h2 {
+    font-size: 1.6rem;
+  }
+
+  section.chapter p {
+    font-size: 1.05rem;
+  }
+
+  section.chapter p.small {
+    font-size: 0.92rem;
+  }
+
+  #intro img,
+  #dry-season img,
+  #short-rains img,
+  #wet-season img,
+  #early-dry img,
+  #lion img,
+  #conclusion .conclusion-image {
+    width: min(300px, 100%);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #conclusion.chapter {
+    margin: 45vh -5vw 0;
+    padding: 3rem 5vw 4rem;
   }
 }
 
