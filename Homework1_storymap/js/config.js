@@ -54,8 +54,7 @@ window.storyConfig = {
       ],
       onChapterExit: [
         { layer: "Wildebeest_Dry_clean",   opacity: 0.3 },
-        { layer: "Wildebeest_Tracks",      opacity: 0.1 },
-        { layer: "Tsavo_Lion_Tracks",      opacity: 0.05 }
+        { layer: "Wildebeest_Tracks",      opacity: 0.1 }
       ]
     },
 
