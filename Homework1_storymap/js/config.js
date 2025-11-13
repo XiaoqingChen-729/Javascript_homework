@@ -7,10 +7,16 @@ window.storyConfig = {
         <h3>The Great Migration</h3>
         <p>East Africa's savanna runs on a wet-dry rhythm. Wildebeest track the rains; predators respond in sync.</p>
       `,
-      location: { center: [34.6, -1.8], zoom: 5.5, pitch: 0, bearing: 0 },
-      focusLayers: ["Wildebeest_Short_clean"],
-      focusMaxZoom: 6,
-      focusPadding: [36, 36],
+      location: {
+        bounds: [
+          [34.20, -3.60],
+          [36.10, -0.80]
+        ],
+        padding: [60, 60]
+      },
+      focusLayers: ["Wildebeest_Tracks"],
+      focusMaxZoom: 8,
+      focusPadding: [48, 48],
       onChapterEnter: [
         { layer: "Wildebeest_Tanzania_BG", opacity: 0.2 },
         { layer: "Tsavo_Lion_Tracks",      opacity: 0.05 }

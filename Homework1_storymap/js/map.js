@@ -2,12 +2,12 @@
 window.addEventListener('load', () => {
   // 1) 初始化地图到东非
   const map = L.map('map', { zoomControl: true, preferCanvas: true })
-    .setView([-1.29, 36.82], 6); // Nairobi 作为初始视角
+    .setView([-2.1, 35.1], 7);  // Mara-Serengeti 作为初始视角
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap contributors, style by HOT, tiles by OSM France'
+}).addTo(map);
 
   // 2) 画一个“测试点”，确认地图正常显示
   L.circleMarker([-1.29, 36.82], {
@@ -17,6 +17,16 @@ window.addEventListener('load', () => {
   // 3) 一个小工具：加载 GeoJSON 并加到地图，带错误提示
   const LAYERS = {};
   let currentChapterId = null;
+
+  function setLayerOpacity(layerId, opacity) {
+    const layer = LAYERS[layerId];
+    if (!layer) return;
+    layer.eachLayer(l => {
+      if (l.setStyle) {
+        l.setStyle({ opacity, fillOpacity: opacity });
+      }
+    });
+  }
 
   const trackFeaturesBySource = new Map();
   let trackLayer = null;
@@ -136,10 +146,6 @@ window.addEventListener('load', () => {
   }
 
   // 4) 加载你的数据（路径以 index.html 为基准）
-  addPointLayer("Wildebeest_Dry",        "data/wildebeest_mara_dry_season_points.geojson",   "#2563eb");
-  addPointLayer("Wildebeest_ShortRains", "data/wildebeest_mara_short_rains_points.geojson",  "#1d4ed8");
-  addPointLayer("Wildebeest_Wet",        "data/wildebeest_mara_wet_season_points.geojson",   "#0ea5e9");
-
   addPointLayer("Tsavo_Lion",            "data/tsavo_lion_points.geojson",                   "#ef4444");
   addLineLayer ("Tsavo_Lion_Tracks",     "data/tsavo_lion_tracks.geojson",                   "#f87171");
   addPointLayer("Wildebeest_Tanzania_BG","data/wildebeest_tanzania_points_sampled.geojson",  "#94a3b8");
@@ -149,14 +155,14 @@ window.addEventListener('load', () => {
   fetch('data/wildebeest_mara_2017_2021_points.geojson')
   .then(r => r.json())
   .then(gj => {
-    const F = gj.features;
+    const F = Array.isArray(gj.features) ? gj.features : [];
     const eatMonth = ts => {
       const t = new Date(ts || (typeof ts === 'number' ? ts : 0));
       const eat = new Date(t.getTime() + 3 * 3600 * 1000);
       return eat.getUTCMonth() + 1; // 1-12
     };
 
-     const allTrackEntries = new Map();
+    const allTrackEntries = new Map();
 
     const collectTrackEntry = (feature, fallbackIndex, targetMap) => {
       if (!feature || feature.geometry?.type !== 'Point') return;
@@ -203,8 +209,6 @@ window.addEventListener('load', () => {
       return features;
     };
 
-    const keptPointIndexes = new Set();
-
     const makeSeasonLayer = (id, predicate, color) => {
       const subsetFeatures = [];
       const seasonEntries = new Map();
@@ -215,7 +219,8 @@ window.addEventListener('load', () => {
         const ok = predicate(f, time);
         if (ok) {
           subsetFeatures.push(f);
-          keptPointIndexes.add(idx);
+          collectTrackEntry(f, idx, seasonEntries);
+          collectTrackEntry(f, idx, allTrackEntries);
         }
       });
 
@@ -259,7 +264,7 @@ window.addEventListener('load', () => {
     makeSeasonLayer('Wildebeest_Wet_clean',        wet,        '#063d57ff');
     setLayerOpacity('Wildebeest_Wet_clean', 0);
     makeSeasonLayer('Wildebeest_AprMay',           aprMay,     '#f59e0b');
-    setLayerOpacity('Wildebeest_AprMay', 0)
+    setLayerOpacity('Wildebeest_AprMay', 0);
     
 
     trackFeaturesBySource.set('ALL', buildTrackFeatures(allTrackEntries));
@@ -268,14 +273,6 @@ window.addEventListener('load', () => {
   .catch(e => console.error('load master points failed:', e));
   
   // 5) 暴露给 app.js 的章节切换函数
-  function setOpacity(layerId, opacity) {
-    const layer = LAYERS[layerId];
-    if (!layer) return;
-    layer.eachLayer(l => {
-      if (l.setStyle) l.setStyle({ opacity, fillOpacity: opacity });
-    });
-  }
-
   window.applyChapter = function applyChapter(chapterId) {
     const chapter = window.storyConfig?.chapters?.find(c => c.id === chapterId);
     if (!chapter) return;
@@ -305,7 +302,7 @@ window.addEventListener('load', () => {
       map.flyTo([center[1], center[0]], zoom, { duration: 1.0 });
     }
 
-    (chapter.onChapterEnter || []).forEach(({ layer, opacity }) => setOpacity(layer, opacity));
-    (chapter.onChapterExit  || []).forEach(({ layer, opacity }) => setOpacity(layer, opacity));
+    (chapter.onChapterEnter || []).forEach(({ layer, opacity }) => setLayerOpacity(layer, opacity));
+    (chapter.onChapterExit  || []).forEach(({ layer, opacity }) => setLayerOpacity(layer, opacity));
   };
 });

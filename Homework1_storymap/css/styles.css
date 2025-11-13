@@ -229,7 +229,7 @@ section.chapter.full {
 
 /* === 当前章节高亮 === */
 section.chapter.active {
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35) inset,
+  box-shadow: 0 0 0 3px rgba(245, 170, 7, 0.966) inset,
               0 2px 10px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s ease;
 }
@@ -273,6 +273,54 @@ section.chapter p.small {
 }
 
 #dry-season img {
+  display: block;
+  width: clamp(400px, 100%, 100%);
+  max-width: none;
+  margin: 1rem 0 0;
+  border-radius: 12px;
+}
+
+#short-rains {
+  overflow: visible;
+}
+
+#short-rains img {
+  display: block;
+  width: clamp(400px, 100%, 100%);
+  max-width: none;
+  margin: 1rem 0 0;
+  border-radius: 12px;
+}
+
+#wet-season {
+  overflow: visible;
+}
+
+#wet-season img {
+  display: block;
+  width: clamp(400px, 100%, 100%);
+  max-width: none;
+  margin: 1rem 0 0;
+  border-radius: 12px;
+}
+
+#early-dry {
+  overflow: visible;
+}
+
+#early-dry img {
+  display: block;
+  width: clamp(400px, 100%, 100%);
+  max-width: none;
+  margin: 1rem 0 0;
+  border-radius: 12px;
+}
+
+#lion {
+  overflow: visible;
+}
+
+#lion img {
   display: block;
   width: clamp(400px, 100%, 100%);
   max-width: none;
