@@ -28,8 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
     activeChapter = target;
     activeChapter.classList.add('active');
 
-    if (window.applyChapter) window.applyChapter(activeChapter.id);
-  }
+    if (window.applyChapter) {
+      window.applyChapter(activeChapter.id);
+    } else {
+      window.__pendingChapterId = activeChapter.id;
+    }
 
   function handleEntries(entries) {
     const visible = entries
@@ -71,6 +74,5 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.addEventListener('resize', scheduleObserverRefresh);
+}
 });
-
-

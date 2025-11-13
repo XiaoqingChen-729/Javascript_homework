@@ -19,13 +19,13 @@ window.addEventListener('load', () => {
   let currentChapterId = null;
 
   // Mara-Serengeti 范围界限图层（用于引导页聚焦区域）
-   const maraSerengetiBoundary = L.circle([-2.2, 35.15], {
+  const maraSerengetiBoundary = L.circle([-2.2, 35.15], {
     radius: 190000,
-    color: '#16a34a',
+    color: '#15803d',
     weight: 2,
     opacity: 0.9,
     fillColor: '#16a34a',
-    fillOpacity: 0.25
+    fillOpacity: 0.35
   }).addTo(map);
   maraSerengetiBoundary.__baseOpacity = maraSerengetiBoundary.options.opacity ?? 1;
   maraSerengetiBoundary.__baseFillOpacity = maraSerengetiBoundary.options.fillOpacity ?? 1;
@@ -209,6 +209,35 @@ window.addEventListener('load', () => {
       if (lng > trackExtent.maxLng) trackExtent.maxLng = lng;
     });
 
+    const extentIsValid =
+      Number.isFinite(trackExtent.minLat) &&
+      Number.isFinite(trackExtent.maxLat) &&
+      Number.isFinite(trackExtent.minLng) &&
+      Number.isFinite(trackExtent.maxLng) &&
+      trackExtent.minLat <= trackExtent.maxLat &&
+      trackExtent.minLng <= trackExtent.maxLng;
+
+    if (extentIsValid) {
+      const centerLat = (trackExtent.minLat + trackExtent.maxLat) / 2;
+      const centerLng = (trackExtent.minLng + trackExtent.maxLng) / 2;
+      const centerLatLng = L.latLng(centerLat, centerLng);
+      const corners = [
+        L.latLng(trackExtent.minLat, trackExtent.minLng),
+        L.latLng(trackExtent.minLat, trackExtent.maxLng),
+        L.latLng(trackExtent.maxLat, trackExtent.minLng),
+        L.latLng(trackExtent.maxLat, trackExtent.maxLng)
+      ];
+      const paddingFactor = 1.08;
+      const maxRadius = Math.max(
+        ...corners.map(corner => map.distance(centerLatLng, corner))
+      );
+
+      if (Number.isFinite(maxRadius) && maxRadius > 0) {
+        maraSerengetiBoundary.setLatLng(centerLatLng);
+        maraSerengetiBoundary.setRadius(maxRadius * paddingFactor);
+      }
+    }
+
     const collectTrackEntry = (feature, fallbackIndex, targetMap) => {
       if (!feature || feature.geometry?.type !== 'Point') return;
 
@@ -350,4 +379,11 @@ window.addEventListener('load', () => {
     (chapter.onChapterEnter || []).forEach(({ layer, opacity }) => setLayerOpacity(layer, opacity));
     (chapter.onChapterExit  || []).forEach(({ layer, opacity }) => setLayerOpacity(layer, opacity));
   };
+
+  if (typeof window.__pendingChapterId === 'string') {
+    window.applyChapter(window.__pendingChapterId);
+    delete window.__pendingChapterId;
+  } else if (window.storyConfig?.chapters?.length) {
+    window.applyChapter(window.storyConfig.chapters[0].id);
+  }
 });
