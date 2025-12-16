@@ -1,37 +1,36 @@
-// 这里放“属性数据”，主要用于侧栏列表 & 详情。
-// 真正的几何边界在 data/parks.geojson 里。
+// js/parks-data.js
 
 const PARKS_META = [
   {
     id: "serengeti",
     name: "Serengeti National Park",
     country: "Tanzania",
-    visitors_2024: 589000, // 示例
-    predator_index: 5,
+    visitors_2024: 600000,      
+    predator_index: 5,        
     has_big_five: true,
     in_migration_route: true,
     main_species: ["Lion", "Cheetah", "Wildebeest"],
-    storymap_url: "https://你的-storymap-链接-如果有的话"
+    storymap_url: ""          
   },
   {
     id: "maasai_mara",
     name: "Maasai Mara National Reserve",
     country: "Kenya",
-    visitors_2024: 400000,
+    visitors_2024: 350000,
     predator_index: 5,
     has_big_five: true,
     in_migration_route: true,
     main_species: ["Lion", "Leopard", "Wildebeest"],
-    storymap_url: "https://你的-storymap-链接-如果有的话"
+    storymap_url: ""
   },
   {
     id: "ngorongoro",
     name: "Ngorongoro Conservation Area",
     country: "Tanzania",
-    visitors_2024: 350000,
+    visitors_2024: 300000,
     predator_index: 4,
     has_big_five: true,
-    in_migration_route: false,
+    in_migration_route: true,
     main_species: ["Lion", "Black Rhino", "Elephant"],
     storymap_url: ""
   },
@@ -50,7 +49,7 @@ const PARKS_META = [
     id: "tarangire",
     name: "Tarangire National Park",
     country: "Tanzania",
-    visitors_2024: 120000,
+    visitors_2024: 140000,
     predator_index: 3,
     has_big_five: false,
     in_migration_route: false,
@@ -83,7 +82,7 @@ const PARKS_META = [
     id: "tsavo_west",
     name: "Tsavo West National Park",
     country: "Kenya",
-    visitors_2024: 90000,
+    visitors_2024: 100000,
     predator_index: 3,
     has_big_five: true,
     in_migration_route: false,
@@ -113,3 +112,4 @@ const PARKS_META = [
     storymap_url: ""
   }
 ];
+

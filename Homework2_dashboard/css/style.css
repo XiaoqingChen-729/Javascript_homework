@@ -1,11 +1,11 @@
-/* ============ 复用 Story Map 字体 ============ */
+
 @font-face {
   font-family: "CatsHandwriting";
   src: url("../assets/fonts/CatsHandwriting.woff") format("woff");
   font-display: swap;
 }
 
-/* ============ 全局布局 ============ */
+/* ============ Overview ============ */
 *,
 *::before,
 *::after {
@@ -17,6 +17,15 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: #f9f4ea;
   color: #333;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+html,
+body {
+  height: 100%;
 }
 
 .app-header {
@@ -39,15 +48,34 @@ body {
 
 .layout {
   display: flex;
-  height: calc(100vh - 110px); /* header + footer 预留 */
+  flex: 1;
+  min-height: 0;
+  height: auto; 
+  overflow: hidden; 
 }
 
-/* 地图区域 */
+/* 地图区域 (Desktop) */
 #map {
   flex: 1;
+  height: 100%;
+  min-height: 560px;
+  min-width: 0;
+  position: relative;
+  z-index: 0; 
 }
 
-/* 右侧侧栏 */
+@media (max-width: 768px) {
+  .layout {
+    height: auto;
+    min-height: 0;
+  }
+
+  #map {
+    min-height: 420px;
+  }
+}
+
+/* 右侧侧栏 (Desktop) */
 .sidebar {
   width: 340px;
   max-width: 40vw;
@@ -55,7 +83,10 @@ body {
   background-color: #fcf7ee;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow-y: auto; 
+  min-width: 280px;
+  position: relative;
+  z-index: 2;
 }
 
 .panel {
@@ -78,7 +109,7 @@ body {
   border: 1px solid #d0c2aa;
 }
 
-/* 公园列表 */
+/* 公园列表 (Desktop) */
 .park-list {
   max-height: 260px;
   overflow-y: auto;
@@ -171,5 +202,70 @@ body {
   width: 150px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(to right, #f1f2d6, #e6b86c, #b34b32);
+  /* 更新颜色，匹配 main.js 中的捕食者指数颜色映射 */
+  background: linear-gradient(to right, #b7d6a5, #d0893b, #9b5a2c); 
+}
+
+/* ================================================= */
+/* 媒体查询：响应式设计 (Mobile)            */
+/* ================================================= */
+
+@media (max-width: 768px) {
+  /* 1. 布局调整：垂直堆叠，高度自适应 */
+  .layout {
+    flex-direction: column; /* 地图和侧栏垂直堆叠 */
+    height: auto; /* 允许页面滚动以显示所有内容 */
+  }
+
+  /* 2. 地图调整：全宽，固定高度 */
+  #map {
+    width: 100%;
+    height: 40vh; /* 保证地图在手机屏幕上有足够的显示空间 */
+    min-height: 250px;
+  }
+
+  /* 3. 侧栏调整：全宽，内容不滚动 */
+  .sidebar {
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    overflow-y: visible; /* 允许侧栏内容随着整个页面滚动 */
+  }
+  
+  /* 4. 公园列表调整：移除高度限制，适应手机屏幕 */
+  .park-list {
+    max-height: none; 
+    overflow-y: visible; /* 允许列表内容完整显示 */
+  }
+
+  /* 5. 头部调整：字体缩小 */
+  .title-handwriting {
+    font-size: 1.6rem;
+  }
+
+  /* 6. 底部图例调整：垂直堆叠 */
+  .legend-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 16px;
+  }
+}
+
+.leaflet-container {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* 瓦片和 pane 必须是绝对定位，否则就会一块块排成表格 */
+.leaflet-pane,
+.leaflet-tile {
+  position: absolute !important;
+}
+
+/* 如果你写过 img { max-width: 100%; } 会把瓦片拉伸，这里强制还原 */
+.leaflet-container img.leaflet-tile,
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow {
+  max-width: none !important;
 }
