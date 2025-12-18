@@ -31,11 +31,11 @@
 
     <aside class="sidebar">
       <section class="panel">
-        <h2>Choose Filtering Method</h2>
+        <h2>Filtering Options</h2>
         <div class="filter-mode">
           <label><input type="radio" name="filterMode" value="country" checked /> By Country</label>
           <label><input type="radio" name="filterMode" value="park" /> By Park</label>
-          <label><input type="radio" name="filterMode" value="animal" /> By Animal</label>
+          <label><input type="radio" name="filterMode" value="iucn" /> By IUCN</label>
         </div>
         <input
           id="searchInput"
@@ -62,31 +62,28 @@
 
   <footer class="legend-bar">
     <div class="legend">
-      <div class="legend-row legend-row-top">
-      <div class="legend-title">Legend</div>
-    </div>
+      <div class="legend-inner">
+        <div class="legend-row legend-row-top">
+          <div class="legend-title">Legend</div>
+        </div>
 
-    <div class="legend-row legend-row-middle">
-      <div class="legend-size">
-        Circle size: Annual visitors
-      </div>
+          <div class="legend-color">
+            <span class="legend-color-text">
+              Park Built Year ------
+            </span>
+            <span class="legend-scale-label">From Old</span>
+            <div class="legend-gradient"></div>
+            <span class="legend-scale-label">To New</span>
+          </div>
+        </div>
 
-      <div class="legend-color">
-        <span class="legend-color-text">
-          Circle color: Predator index (low → high)
-        </span>
-        <span class="legend-scale-label">Low</span>
-        <div class="legend-gradient"></div>
-        <span class="legend-scale-label">High</span>
-      </div>
-    </div>
-
-    <div class="legend-row legend-row-bottom">
-      <div class="legend-attribution">
-        © OpenStreetMap contributors · style by HOT · tiles by OSM France · Powered by Leaflet
+        <div class="legend-row legend-row-bottom">
+          <div class="legend-attribution">
+            © OpenStreetMap contributors · style by HOT · tiles by OSM France · Powered by Leaflet
+          </div>
+        </div>
       </div>
     </div>
-  </div>
   </footer>
 
   <!-- Leaflet JS -->

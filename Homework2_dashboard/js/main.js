@@ -18,6 +18,42 @@ function iso3ToCountryName(iso3) {
   return map[iso3] || iso3 || "Unknown";
 }
 
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function hexToRgb(hex) {
+  const clean = hex.replace("#", "");
+  const num = parseInt(clean, 16);
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255
+  };
+}
+
+function rgbToHex({ r, g, b }) {
+  return (
+    "#" +
+    [r, g, b]
+      .map((v) => {
+        const clamped = Math.max(0, Math.min(255, Math.round(v)));
+        return clamped.toString(16).padStart(2, "0");
+      })
+      .join("")
+  );
+}
+
+function interpolateHexColor(startHex, endHex, t) {
+  const start = hexToRgb(startHex);
+  const end = hexToRgb(endHex);
+  return rgbToHex({
+    r: lerp(start.r, end.r, t),
+    g: lerp(start.g, end.g, t),
+    b: lerp(start.b, end.b, t)
+  });
+}
+
 // 从 WDPA CSV 生成所有公园的 meta 列表
 function buildParksMetaFromCsv(csvText) {
   const lines = csvText.trim().split(/\r?\n/);
@@ -78,6 +114,7 @@ function buildParksMetaFromCsv(csvText) {
       iucnCat: cat,
       area_km2: row.REP_AREA ? Number(row.REP_AREA) : null,
       statusYear: row.STATUS_YR ? Number(row.STATUS_YR) : null,
+      govType: row.GOV_TYPE || row.MANG_AUTH || "Unknown",
 
       // 下面这些是给 9 个重点公园“加料”的字段，其它公园默认值即可
       visitors_2024: 0,
@@ -148,6 +185,27 @@ function initDashboard(map, parksGeojson, parksMeta) {
   let activeParkId = null;
   let parksLayer;
 
+  const statusYears = parksMeta
+    .map((m) => m.statusYear)
+    .filter((y) => typeof y === "number" && !Number.isNaN(y));
+  const minStatusYear = statusYears.length
+    ? Math.min(...statusYears)
+    : null;
+  const maxStatusYear = statusYears.length
+    ? Math.max(...statusYears)
+    : null;
+
+  function colorByStatusYear(year) {
+    if (!year || !minStatusYear || !maxStatusYear) return "#c7b89f";
+    if (minStatusYear === maxStatusYear) return "#8c5a2e";
+    const t = Math.max(
+      0,
+      Math.min(1, (year - minStatusYear) / (maxStatusYear - minStatusYear))
+    );
+    // 更旧 = 更深色
+    return interpolateHexColor("#8c5a2e", "#e8d9b8", t);
+  }
+
   // DOM
   const parkListEl = document.getElementById("parkList");
   const parkDetailEl = document.getElementById("parkDetail");
@@ -176,11 +234,12 @@ function initDashboard(map, parksGeojson, parksMeta) {
     if (parkId) {
       const newLayer = parkLayersById.get(parkId);
       if (newLayer) {
+        const meta = parksMetaById.get(parkId);
         newLayer.setStyle({
           color: "#F4A261",
           weight: 3,
           opacity: 1,
-          fillColor: "#f5b581ff",
+          fillColor: colorByStatusYear(meta?.statusYear),
           fillOpacity: 0.40
         });
         map.fitBounds(newLayer.getBounds(), { maxZoom: 8 });
@@ -200,20 +259,25 @@ function initDashboard(map, parksGeojson, parksMeta) {
   }
 
   // ---- 2.1 画所有公园多边形 ----
+  const baseParkStyle = (meta) => ({
+    color: "#F47D85",
+    weight: 1,
+    opacity: 0.7,
+    fillColor: colorByStatusYear(meta?.statusYear),
+    fillOpacity: 0.35
+  });
+
   parksLayer = L.geoJSON(parksGeojson, {
-    style: {
-      color: "#F47D85",
-      weight: 1,
-      opacity: 0.7,
-      fillColor: "#F7D8DF",
-      fillOpacity: 0.35
+    style: (feature) => {
+      const parkId = String(feature.properties.SITE_ID || "");
+      const meta = parksMetaById.get(parkId);
+      return baseParkStyle(meta);
     },
     onEachFeature: (feature, layer) => {
       const siteId = feature.properties.SITE_ID;
       if (!siteId) return;
       const parkId = String(siteId);
 
-      // 只保留在 CSV meta 里出现过的公园（保证两边能匹配上）
       if (!parksMetaById.has(parkId)) return;
 
       feature.properties.id = parkId;
@@ -234,7 +298,7 @@ function initDashboard(map, parksGeojson, parksMeta) {
 
     const center = layer.getBounds().getCenter();
     const radius = scaleVisitors(meta.visitors_2024);
-    const fillColor = scalePredator(meta.predator_index);
+    const fillColor = colorByStatusYear(meta.statusYear);
 
     const circle = L.circleMarker(center, {
       radius,
@@ -255,8 +319,8 @@ function initDashboard(map, parksGeojson, parksMeta) {
         (meta.visitors_2024
           ? `Visitors (2024): ${meta.visitors_2024.toLocaleString()}<br>`
           : "") +
-        (meta.predator_index
-          ? `Predator Index: ${meta.predator_index}/5`
+        (meta.statusYear 
+          ? `Established: ${meta.statusYear}` 
           : "")
     );
   });
@@ -279,23 +343,25 @@ function initDashboard(map, parksGeojson, parksMeta) {
   }
 
   function matchFilter(meta, mode, keyword) {
-    if (!keyword) return true;
-    keyword = keyword.toLowerCase();
+  if (!keyword) return true;          // 没有关键字就不过滤
+  keyword = keyword.toLowerCase();
 
-    if (mode === "country") {
-      return (meta.country || "").toLowerCase().includes(keyword);
-    }
-    if (mode === "park") {
-      return (meta.name || "").toLowerCase().includes(keyword);
-    }
-    if (mode === "animal") {
-      return (meta.main_species || [])
-        .join(" ")
+  if (mode === "park") {
+    return (name + " " + country).includes(k);
+  }
+
+  if (mode === "country") {
+    return country.includes(k);
+  }
+
+  if (mode === "iucn") {
+      return (meta.iucnCat || "")
         .toLowerCase()
         .includes(keyword);
     }
-    return true;
-  }
+  return true;
+}
+
 
   function renderParkList() {
     parkListEl.innerHTML = "";
@@ -363,6 +429,7 @@ function initDashboard(map, parksGeojson, parksMeta) {
         <p><strong>Year established:</strong> ${
           meta.statusYear || "N/A"
         }</p>
+        <p><strong>Manager:</strong> ${meta.govType || "N/A"}</p>
         ${
           meta.visitors_2024
             ? `<p><strong>Visitors (2024):</strong> ${meta.visitors_2024.toLocaleString()}</p>`
@@ -407,26 +474,11 @@ function initDashboard(map, parksGeojson, parksMeta) {
   renderParkList();
 }
 
-// ======== 原来的两个映射函数保留 ========
-// 游客数 -> 圆半径（只对有 visitors_2024 的公园生效）
-function scaleVisitors(v) {
-  if (!v) return 0;
-  const maxVisitors = 600000; // 可以根据需要改
-  const minRadius = 5;
-  const maxRadius = 15;
-  const normalized = Math.min(v / maxVisitors, 1);
-  return minRadius + normalized * (maxRadius - minRadius);
-}
-
-// 捕食者指数 -> 颜色
-function scalePredator(p) {
-  if (!p) return "#ccc";
-  const colorMap = {
-    1: "#b7d6a5",
-    2: "#8bb96d",
-    3: "#d0893b",
-    4: "#b56930",
-    5: "#9b5a2c"
-  };
-  return colorMap[p] || "#ccc";
+function colorByStatusYear(year) {
+  if (!year) return "#f7d8df";
+  if (year <= 1950) return "#8c5a2e";   
+  if (year <= 1975) return "#a96b3a";
+  if (year <= 1995) return "#c5834a";
+  if (year <= 2010) return "#d9a56a";
+  return "#e8d9b8";                   
 }
