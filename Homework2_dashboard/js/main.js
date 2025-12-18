@@ -1,5 +1,3 @@
-// main.js —— 使用 GeoJSON 画所有公园，用 CSV 提供所有公园的信息
-
 // ===== 一些小工具函数 =====
 function iso3ToCountryName(iso3) {
   const map = {
@@ -116,13 +114,12 @@ function buildParksMetaFromCsv(csvText) {
 window.addEventListener("load", () => {
   const map = L.map("map", {
     zoomControl: true,
-    preferCanvas: true
+    preferCanvas: true,
+    attributionControl: false
   }).setView([-2.1, 35.1], 7);
 
   L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution:
-      "© OpenStreetMap contributors, style by HOT, tiles by OSM France"
   }).addTo(map);
 
   map.whenReady(() => map.invalidateSize());

@@ -185,27 +185,73 @@ body {
 }
 
 /* Bottom Bar */
-.legend-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 16px;
-  border-top: 1px solid #e0d4bd;
+.legend {
   background-color: #f3e6cf;
+  border-top: 1px solid #e0d4bd;
+  color: #5a4a3a;
   font-size: 0.8rem;
 }
 
-.color-scale {
+/* 内部容器：控制整体宽度和内边距 */
+.legend-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 50px 40px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 每一行都是 flex 行 */
+.legend-row {
+  display: flex;
+  align-items: center;
+}
+
+/* 第一行：只有 Legend 标题，靠左 */
+.legend-row-top .legend-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* 第二行：左边 size，右边 color，左右拉开 */
+.legend-row-middle {
+  justify-content: space-between;
+  flex-wrap: wrap;       /* 小屏幕时允许换行 */
+  gap: 6px 18px;
+}
+
+.legend-color {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-left: auto;     /* 把这一块推到第二行的右边 */
 }
 
-.color-gradient {
-  width: 150px;
+.legend-color-text {
+  white-space: nowrap;   /* 不想轻易断行的话保留这句 */
+  font-size: 0.8rem;
+}
+
+.legend-gradient {
+  width: 160px;
   height: 10px;
   border-radius: 999px;
-  background: linear-gradient(to right, #b7d6a5, #d0893b, #9b5a2c); 
+  background: linear-gradient(to right, #c7dca0, #c27d3a); /* 你原来的配色 */
+}
+
+.legend-scale-label {
+  font-size: 0.75rem;
+}
+
+.legend-row-bottom {
+  justify-content: center;
+}
+
+.legend-attribution {
+  font-size: 0.75rem;
+  color: #8a7a60;
+  text-align: center;
 }
 
 /* ================================================= */
@@ -249,148 +295,29 @@ body {
 }
 
 .leaflet-container {
-  position: relative !important;
-  overflow: hidden !important;
+  position: relative;
+  overflow: hidden;
 }
 
 .leaflet-pane,
 .leaflet-tile {
-  position: absolute !important;
-}
-
-.leaflet-container img.leaflet-tile,
-.leaflet-container .leaflet-marker-icon,
-.leaflet-container .leaflet-marker-shadow {
-  max-width: none !important;
-}
-
-.leaflet-control-container {
-  position: relative;
-  z-index: 50; 
-}
-
-.leaflet-control-attribution {
-  background: rgba(255, 252, 245, 0.9);  /* 淡米色小胶囊 */
-  color: #6b5b4b;
-  font-size: 11px;
-  border-radius: 999px;
-  padding: 3px 10px;
-  border: 1px solid rgba(180, 150, 120, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
   position: absolute;
-  right: 16px;
-  margin-bottom: 70px; 
 }
 
-.leaflet-control-attribution a {
-  color: #c97c5d;
-  text-decoration: none;
-  font-weight: 500;
-}
-.leaflet-control-attribution a:hover {
-  text-decoration: underline;
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  max-width: none;
 }
 
-.leaflet-control-zoom a {
-  background: rgba(255, 252, 245, 0.95);
-  border: 1px solid rgba(180, 150, 120, 0.4);
-  color: #6b5b4b;
-  width: 28px;
-  height: 28px;
-  line-height: 26px;
-  font-size: 18px;
-  font-weight: 600;
-  border-radius: 999px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-.leaflet-control-zoom a:hover {
-  background: #f7e5cf;
-  color: #5a4b3c;
-}
-.leaflet-top.leaflet-left .leaflet-control-zoom {
-  margin-top: 12px;
-  margin-left: 10px;
-}
+/* ============ Leaflet 控件（版权 + 缩放按钮） ============ */
 
-.leaflet-bottom.leaflet-right .leaflet-control-attribution {
-  position: absolute;
-  right: 16px;    
-  bottom: 80px;   
-  margin: 0;
-
-  background: rgba(255, 252, 245, 0.9);
-  color: #6b5b4b;
-  font-size: 11px;
-  border-radius: 999px;
-  padding: 3px 10px;
-  border: 1px solid rgba(180, 150, 120, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-
-.leaflet-control-attribution a {
-  color: #c97c5d;
-  text-decoration: none;
-  font-weight: 500;
-}
-.leaflet-control-attribution a:hover {
-  text-decoration: underline;
-}
-
-.leaflet-control-zoom a {
-  background: rgba(255, 252, 245, 0.95);
-  border: 1px solid rgba(180, 150, 120, 0.4);
-  color: #6b5b4b;
-  width: 28px;
-  height: 28px;
-  line-height: 26px;
-  font-size: 18px;
-  font-weight: 600;
-  border-radius: 999px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-}
-.leaflet-control-zoom a:hover {
-  background: #f7e5cf;
-  color: #5a4b3c;
-}
-.leaflet-top.leaflet-left .leaflet-control-zoom {
-  margin-top: 12px;
-  margin-left: 10px;
-}
-
-/* ============ Leaflet 控件统一样式 ============ */
-
-/* 控件层级调高一点，压在地图上面 */
+/* 控件整体层级高一点，压在地图上方 */
 .leaflet-control-container {
   position: relative;
   z-index: 50;
 }
 
-/* 右下角的小胶囊（版权说明） */
-.leaflet-bottom.leaflet-right .leaflet-control-attribution {
-  position: absolute;
-  right: 16px;      /* 离右边的距离：想更靠中可以改大一点 */
-  bottom: 90px;     /* 离底部 legend 的距离：你原来说 90px 就写这里 */
-
-  background: rgba(255, 252, 245, 0.9);
-  color: #6b5b4b;
-  font-size: 11px;
-  border-radius: 999px;
-  padding: 3px 10px;
-  border: 1px solid rgba(180, 150, 120, 0.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-  margin: 0;
-}
-
-.leaflet-control-attribution a {
-  color: #c97c5d;
-  text-decoration: none;
-  font-weight: 500;
-}
-.leaflet-control-attribution a:hover {
-  text-decoration: underline;
-}
-
-/* 左上角 + / - 缩放按钮样式 */
+/* 左上角缩放按钮美化 */
 .leaflet-control-zoom a {
   background: rgba(255, 252, 245, 0.95);
   border: 1px solid rgba(180, 150, 120, 0.4);
@@ -403,6 +330,7 @@ body {
   border-radius: 999px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
+
 .leaflet-control-zoom a:hover {
   background: #f7e5cf;
   color: #5a4b3c;
