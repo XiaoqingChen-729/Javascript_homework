@@ -34,7 +34,7 @@ body {
 }
 
 body {
-  font-family: "CatsHandwriting", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "CatsHandwriting", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text-main);
   background-color: var(--bg-page);
 }
