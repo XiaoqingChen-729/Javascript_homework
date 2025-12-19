@@ -224,14 +224,38 @@ function initDashboard(map, parksGeojson, parksMeta) {
   }
 
   // DOM
+  const sidebarEl = document.querySelector(".sidebar");
+  const toggleSidebarBtn = document.getElementById("toggleSidebar");
   const parkListEl = document.getElementById("parkList");
   const parkDetailEl = document.getElementById("parkDetail");
   const searchInput = document.getElementById("searchInput");
   const filterRadios = document.querySelectorAll('input[name="filterMode"]');
   let currentFilterMode = "country";
 
+  if (sidebarEl && toggleSidebarBtn) {
+  toggleSidebarBtn.addEventListener("click", () => {
+    const collapsed = sidebarEl.classList.toggle("sidebar-collapsed");
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 310);
+  });
+}
+
   // Map Info Popup
   let mapInfoPopup = null;
+
+  const mapInfoControl = L.control({ position: "topright" });
+  let mapInfoEl = null;
+
+  mapInfoControl.onAdd = function () {
+    const container = L.DomUtil.create("div", "map-info-box hidden");
+    container.innerHTML = "<p>Click to get details</p>";
+    L.DomEvent.disableClickPropagation(container);
+    mapInfoEl = container;
+    return container;
+  };
+
+  mapInfoControl.addTo(map);
 
   // ---- 选中公园（列表 + 地图联动）----
   function setActivePark(parkId) {
@@ -440,32 +464,32 @@ function initDashboard(map, parksGeojson, parksMeta) {
   }
 
   function renderMapInfo(meta) {
-    if (!mapInfoEl) return;
-    if (!meta) {
-      mapInfoEl.classList.add("hidden");
-      mapInfoEl.innerHTML = "<p>点击公园查看详情</p>";
-      return;
-    }
-
-    const tags = (meta.main_species || [])
-      .map((s) => `<span class="tag">${s}</span>`)
-      .join("");
-
-    mapInfoEl.classList.remove("hidden");
-    mapInfoEl.innerHTML = `
-      <div class="map-info-title">${meta.name}</div>
-      <div class="map-info-subtitle">${meta.country} · ${
-        meta.desigEng || "N/A"
-      }</div>
-      <div class="map-info-row"><strong>Year:</strong> ${
-        meta.statusYear || "N/A"
-      }</div>
-      <div class="map-info-row"><strong>Area:</strong> ${
-        meta.area_km2 ? meta.area_km2.toLocaleString() + " km²" : "N/A"
-      }</div>
-      ${tags ? `<div class="map-info-tags">${tags}</div>` : ""}
-    `;
+    if (mapInfoPopup) {
+    map.removeLayer(mapInfoPopup);
+    mapInfoPopup = null;
   }
+    if (!meta) return;
+  const layer = parkLayersById.get(meta.id);
+  if (!layer) return;
+
+  const bounds = layer.getBounds();
+  const center = bounds.getCenter();
+
+  const labelLatLng = L.latLng(center.lat, bounds.getEast());
+
+  mapInfoPopup = L.popup({
+    closeButton: false,
+    autoPan: false,         
+    offset: [10, 0],       
+    className: "map-inline-popup"
+  })
+    .setLatLng(labelLatLng)
+    .setContent(
+      `<div class="map-info-title">${meta.name}</div>
+       <div class="map-info-subtitle">${meta.country}</div>`
+    )
+    .addTo(map);
+}
 
   // ---- 4. 事件绑定 ----
   searchInput.addEventListener("input", renderParkList);
