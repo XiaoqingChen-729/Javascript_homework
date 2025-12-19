@@ -1,139 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Mara–Serengeti Design Lab</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8" />
+  <title>Mara-Serengeti Design Studio</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+  <!-- 手写风标题字体（可换你喜欢的） -->
+  <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 
-    <!-- 你的样式 -->
-    <link rel="stylesheet" href="./css/style.css" />
-  </head>
-  <body>
-    <header class="app-header">
-      <div class="app-header-left">
-        <h1 class="app-title">Mara–Serengeti Design Lab</h1>
-        <p class="app-subtitle">
-          Design your own safari park layout in the Mara–Serengeti landscape.
-        </p>
-      </div>
-    </header>
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obC0OgME0="
+    crossorigin=""
+  />
+  <!-- 自己的样式 -->
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
 
-    <main class="layout">
-      <!-- 左边：地图 -->
-      <section class="map-panel">
-        <div id="map"></div>
-      </section>
+<body>
+  <div class="page-bg">
+    <div class="app-frame">
 
-      <!-- 右边：交互面板 -->
-      <aside class="sidebar">
-        <!-- 场景介绍 -->
-        <section class="panel-card scenario-card">
-          <h2>Scenario</h2>
-          <p>
-            Imagine you are a park planner in the Mara–Serengeti region. Place
-            facilities such as lodges, parking, viewpoints and restaurants to
-            balance wildlife protection and visitor experience.
-          </p>
-        </section>
-
-        <!-- 设计工具 -->
-        <section class="panel-card design-card">
-          <h2>Design tools</h2>
-          <p class="small-hint">
-            Step 1: Choose a facility type. Step 2: Click on the map to place it
-            inside the park.
-          </p>
-
-          <div class="design-tools" id="design-tools">
-            <button data-tool="lodge" class="tool-button">
-              🏨 Lodge
-            </button>
-            <button data-tool="parking" class="tool-button">
-              🅿️ Parking
-            </button>
-            <button data-tool="food" class="tool-button">
-              🍽️ Restaurant
-            </button>
-            <button data-tool="view" class="tool-button">
-              👀 Viewpoint
-            </button>
+      <!-- 顶部导航条 -->
+      <header class="top-bar">
+        <div class="top-bar-left">
+          <div class="app-icon">
+            <!-- 可以放一个小 logo，或者用背景图 -->
           </div>
-
-          <p class="small-hint">
-            Tip: Try clustering services near park edges and leaving core areas
-            wilder.
-          </p>
-
-          <button id="btn-clear-design" class="secondary-button">
-            Clear design
-          </button>
-        </section>
-
-        <!-- 设计摘要 + 评分 -->
-        <section class="panel-card result-card">
-          <h2>Your design summary</h2>
-
-          <div id="design-summary" class="design-summary">
-            <p>No facilities placed yet. Select a tool and click on the map.</p>
-          </div>
-
-          <button id="btn-calc-score" class="primary-button">
-            Calculate ecology & experience score
-          </button>
-
-          <div id="design-score" class="design-score"></div>
-        </section>
-      </aside>
-    </main>
-
-    <footer class="legend-panel">
-      <div class="legend-inner">
-        <div class="legend-row legend-row-top">
-          <span class="legend-title">Legend</span>
-        </div>
-
-        <div class="legend-row legend-row-middle">
-          <p class="legend-size">
-            Facility markers show where you place lodges, parking, restaurants
-            and viewpoints.
-          </p>
-          <div class="legend-color">
-            <span class="legend-color-text">
-              Park fill colour: darker = older designation, lighter = newer.
-            </span>
-            <span class="legend-scale-label">New</span>
-            <span class="legend-gradient"></span>
-            <span class="legend-scale-label">Old</span>
+          <div class="app-title-block">
+            <h1 class="app-title">Mara-Serengeti Design Studio</h1>
+            <p class="app-subtitle">
+              Design wildlife-friendly tourism routes and facilities in the Mara–Serengeti landscape.
+            </p>
           </div>
         </div>
 
-        <div class="legend-row legend-row-bottom">
-          <p class="legend-attribution">
-            Base map: © OpenStreetMap contributors · Tiles by HOT/OSM France ·
-            Built with Leaflet
-          </p>
+        <div class="top-bar-right">
+          <button class="top-icon-button" aria-label="Settings">⚙️</button>
+          <button class="top-icon-button" aria-label="Help">❓</button>
+          <button class="primary-chip">Save Design</button>
+        </div>
+      </header>
+
+      <!-- 第二行小条（场景 / 视图切换） -->
+      <div class="sub-bar">
+        <div class="sub-bar-left">
+          <span class="sub-label">Scenario</span>
+          <select class="sub-select">
+            <option>Dry season – classic migration</option>
+            <option>Wet season – calving grounds</option>
+            <option>High tourist season</option>
+          </select>
+        </div>
+        <div class="sub-bar-right">
+          <span class="sub-label">Map view</span>
+          <button class="ghost-chip ghost-chip--active">Design view</button>
+          <button class="ghost-chip">Habitat view</button>
+          <button class="ghost-chip">Traffic view</button>
         </div>
       </div>
-    </footer>
 
-    <!-- Leaflet JS -->
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
+      <!-- 中间主区域：左边地图 + 右边三个 panel -->
+      <main class="app-main">
+        <section class="map-panel">
+          <div id="map"></div>
 
-    <!-- 你的脚本 -->
-    <script src="./js/map.js"></script>
-    <script src="./js/design.js"></script>
-    <script src="./js/main.js"></script>
-  </body>
+          <!-- 可以放路线长度、告警等小标签 -->
+          <div class="map-overlay-badge">
+            No-go zone: 82 km²
+          </div>
+        </section>
+
+        <!-- 右侧竖排卡片 -->
+        <aside class="side-panel">
+
+          <!-- 场景说明卡片 -->
+          <section class="card scenario-card">
+            <div class="card-header">
+              <h2>Scenario</h2>
+              <button class="card-close-btn">×</button>
+            </div>
+            <p class="scenario-text">
+              Wildebeest herds move between Mara River and the Serengeti plains.
+              You are asked to design lodges, viewpoints and access routes that
+              keep key habitats connected while offering memorable experiences.
+            </p>
+            <p class="scenario-text">
+              Avoid placing facilities inside sensitive core zones. Try to keep
+              distances reasonable so visitors can travel comfortably in a day.
+            </p>
+          </section>
+
+          <!-- 设计评分卡片 -->
+          <section class="card scores-card">
+            <div class="card-header">
+              <h2>Design Scores</h2>
+              <div class="score-tabs">
+                <button class="score-tab score-tab--active">Overview</button>
+                <button class="score-tab">Facilities</button>
+                <button class="score-tab">Routes</button>
+              </div>
+            </div>
+
+            <div class="scores-body">
+              <div class="score-row">
+                <div class="score-label">Lodge × Zone</div>
+                <div class="score-value">3.2 km²</div>
+              </div>
+
+              <div class="score-block">
+                <div class="score-block-title">Design summary</div>
+
+                <div class="meter-row">
+                  <span>Conservation impact</span>
+                  <span class="meter-value">57%</span>
+                </div>
+                <div class="meter-bar">
+                  <div class="meter-fill" style="width: 57%;"></div>
+                </div>
+
+                <div class="meter-row">
+                  <span>Resail score</span>
+                  <span class="meter-value">78%</span>
+                </div>
+                <div class="meter-bar">
+                  <div class="meter-fill meter-fill--orange" style="width: 78%;"></div>
+                </div>
+
+                <div class="meter-row">
+                  <span>No-go zone</span>
+                  <span class="meter-value">12%</span>
+                </div>
+                <div class="meter-bar">
+                  <div class="meter-fill meter-fill--red" style="width: 12%;"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 计算 / 反馈卡片 -->
+          <section class="card feedback-card">
+            <div class="card-header">
+              <h2>Calculate Final Score</h2>
+            </div>
+            <p class="scenario-text">
+              When you are happy with your layout, run the final calculation to
+              see how your design balances wildlife protection and visitor experience.
+            </p>
+
+            <button id="btn-calc-score" class="primary-button wide-button">
+              Calculate score
+            </button>
+
+            <div id="design-score" class="design-score-text">
+              <!-- JS 可以在这里写反馈：“Great balance! You kept 80% of migration path open.” -->
+            </div>
+          </section>
+
+        </aside>
+      </main>
+
+      <!-- 底部工具栏 -->
+      <footer class="bottom-toolbar">
+        <div class="toolbar-left">
+          <button class="tool-button">
+            <span class="tool-icon">🏕️</span>
+            <span class="tool-label">Lodge</span>
+          </button>
+          <button class="tool-button">
+            <span class="tool-icon">🅿️</span>
+            <span class="tool-label">Parking</span>
+          </button>
+          <button class="tool-button">
+            <span class="tool-icon">🍽️</span>
+            <span class="tool-label">Restaurant</span>
+          </button>
+          <button class="tool-button">
+            <span class="tool-icon">👀</span>
+            <span class="tool-label">Viewpoint</span>
+          </button>
+        </div>
+
+        <div class="toolbar-right">
+          <span class="toolbar-text">
+            © OpenStreetMap contributors · style by HOT · tiles by OSM France · Powered by Leaflet
+          </span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJ2RGuK2/Z9W+KkIyyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- 自己的 JS -->
+  <script src="./js/main.js"></script>
+</body>
 </html>
