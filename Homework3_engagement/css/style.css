@@ -1,0 +1,306 @@
+/* === 基础全局 === */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #4a3b2a;
+  background-color: #faf4e8;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* === 头部 === */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 12px 24px;
+  border-bottom: 1px solid #e2d4b8;
+  background: linear-gradient(to right, #f8efe0, #fbe8d5);
+}
+
+.app-title {
+  font-size: 1.5rem;
+  margin: 0;
+  color: #5b3d2b;
+}
+
+.app-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #7a6046;
+}
+
+/* === 主布局：左地图 + 右侧栏 === */
+
+.layout {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* 让子元素 flex 正常缩放 */
+}
+
+/* 左边地图区域 */
+
+.map-panel {
+  flex: 2.2;
+  min-width: 0;
+  border-right: 1px solid #e2d4b8;
+  background-color: #f3e7d4;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* 右侧 Sidebar */
+
+.sidebar {
+  flex: 1.1;
+  min-width: 280px;
+  max-width: 420px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: #fdf7ec;
+}
+
+/* 卡片样式 */
+
+.panel-card {
+  background-color: #fffaf1;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 186, 146, 0.7);
+  padding: 10px 12px;
+  box-shadow: 0 1px 4px rgba(96, 69, 33, 0.08);
+}
+
+.panel-card h2 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: #5b3d2b;
+}
+
+.panel-card p {
+  margin: 4px 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.small-hint {
+  font-size: 0.78rem;
+  color: #8a7156;
+}
+
+/* 设计工具按钮 */
+
+.design-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+
+.tool-button {
+  flex: 1 1 48%;
+  border-radius: 999px;
+  border: 1px solid #e0c8a5;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  background-color: #fff7eb;
+  color: #5b3d2b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease,
+    transform 0.05s ease;
+}
+
+.tool-button:hover {
+  background-color: #f7e3c5;
+  box-shadow: 0 1px 3px rgba(96, 69, 33, 0.16);
+}
+
+.tool-button.active {
+  background-color: #f4b77a;
+  color: #4a3020;
+  border-color: #e3954e;
+}
+
+/* 按钮通用样式 */
+
+.primary-button,
+.secondary-button {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.primary-button {
+  background-color: #f47d85;
+  border-color: #e3636d;
+  color: #fffaf6;
+  margin-top: 4px;
+}
+
+.primary-button:hover {
+  background-color: #ec6a73;
+}
+
+.secondary-button {
+  background-color: #fff8ec;
+  border-color: #e0c8a5;
+  color: #5b3d2b;
+  margin-top: 4px;
+}
+
+.secondary-button:hover {
+  background-color: #f7e5cf;
+}
+
+/* 设计摘要 & 评分 */
+
+.design-summary {
+  font-size: 0.8rem;
+  color: #5b3d2b;
+  margin-bottom: 6px;
+}
+
+.design-summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0;
+}
+
+.design-summary-list li {
+  margin: 2px 0;
+}
+
+.design-score {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: #4a3b2a;
+}
+
+/* === 底部 Legend === */
+
+.legend-panel {
+  border-top: 1px solid #e0d4bd;
+  background-color: #f3e6cf;
+  color: #5a4a3a;
+  font-size: 0.8rem;
+}
+
+.legend-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 28px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+}
+
+.legend-row-top {
+  justify-content: flex-start;
+}
+
+.legend-row-middle {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.legend-row-bottom {
+  justify-content: center;
+}
+
+.legend-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.legend-size {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.legend-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.legend-color-text {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.legend-scale-label {
+  font-size: 0.75rem;
+}
+
+.legend-gradient {
+  width: 120px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(to right, #f7e1d1, #c96b4b);
+}
+
+.legend-attribution {
+  font-size: 0.75rem;
+  color: #8a7a60;
+  text-align: center;
+}
+
+/* === Leaflet 控件微调（只做皮肤，不动版权逻辑） === */
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(255, 252, 245, 0.95);
+  border: 1px solid rgba(180, 150, 120, 0.6);
+  color: #6b5b4b;
+  width: 28px;
+  height: 28px;
+  line-height: 26px;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 999px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+  margin-top: 10px;
+  margin-left: 10px;
+}

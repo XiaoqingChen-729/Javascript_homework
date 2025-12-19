@@ -185,9 +185,13 @@ function initDashboard(map, parksGeojson, parksMeta) {
   let activeParkId = null;
   let parksLayer;
 
-  const statusYears = parksMeta
+  const statusYearsFromMeta = parksMeta
     .map((m) => m.statusYear)
     .filter((y) => typeof y === "number" && !Number.isNaN(y));
+  const statusYearsFromGeojson = (parksGeojson.features || [])
+    .map((f) => f?.properties?.STATUS_YR)
+    .filter((y) => typeof y === "number" && !Number.isNaN(y));
+  const statusYears = [...statusYearsFromMeta, ...statusYearsFromGeojson];
   const minStatusYear = statusYears.length
     ? Math.min(...statusYears)
     : null;
@@ -195,15 +199,28 @@ function initDashboard(map, parksGeojson, parksMeta) {
     ? Math.max(...statusYears)
     : null;
 
+    function getStatusYear(meta, feature) {
+    const fromMeta = meta?.statusYear;
+    if (typeof fromMeta === "number" && !Number.isNaN(fromMeta)) {
+      return fromMeta;
+    }
+    const fromFeature = feature?.properties?.STATUS_YR;
+    if (typeof fromFeature === "number" && !Number.isNaN(fromFeature)) {
+      return fromFeature;
+    }
+    return null;
+  }
+
   function colorByStatusYear(year) {
-    if (!year || !minStatusYear || !maxStatusYear) return "#c7b89f";
-    if (minStatusYear === maxStatusYear) return "#8c5a2e";
+    if (!year || !minStatusYear || !maxStatusYear) return "#d6c5a5";
+    if (minStatusYear === maxStatusYear) return "#5a2f12";
     const t = Math.max(
       0,
       Math.min(1, (year - minStatusYear) / (maxStatusYear - minStatusYear))
     );
-    // 更旧 = 更深色
-    return interpolateHexColor("#8c5a2e", "#e8d9b8", t);
+    // older is darker
+    const eased = Math.pow(t, 0.8);
+    return interpolateHexColor("#faedcf", "#5a2f12", eased);
   }
 
   // DOM
@@ -212,6 +229,9 @@ function initDashboard(map, parksGeojson, parksMeta) {
   const searchInput = document.getElementById("searchInput");
   const filterRadios = document.querySelectorAll('input[name="filterMode"]');
   let currentFilterMode = "country";
+
+  // Map Info Popup
+  let mapInfoPopup = null;
 
   // ---- 选中公园（列表 + 地图联动）----
   function setActivePark(parkId) {
@@ -239,8 +259,8 @@ function initDashboard(map, parksGeojson, parksMeta) {
           color: "#F4A261",
           weight: 3,
           opacity: 1,
-          fillColor: colorByStatusYear(meta?.statusYear),
-          fillOpacity: 0.40
+          fillColor: colorByStatusYear(getStatusYear(meta, newLayer.feature)),
+          fillOpacity: 0.65
         });
         map.fitBounds(newLayer.getBounds(), { maxZoom: 8 });
       }
@@ -253,25 +273,27 @@ function initDashboard(map, parksGeojson, parksMeta) {
 
       const meta = parksMetaById.get(parkId);
       renderParkDetail(meta);
+      renderMapInfo(meta);
     } else {
       renderParkDetail(null);
+      renderMapInfo(null);
     }
   }
 
   // ---- 2.1 画所有公园多边形 ----
-  const baseParkStyle = (meta) => ({
+  const baseParkStyle = (meta, feature) => ({
     color: "#F47D85",
     weight: 1,
-    opacity: 0.7,
-    fillColor: colorByStatusYear(meta?.statusYear),
-    fillOpacity: 0.35
+    opacity: 0.8,
+    fillColor: colorByStatusYear(getStatusYear(meta, feature)),
+    fillOpacity: 0.55
   });
 
   parksLayer = L.geoJSON(parksGeojson, {
     style: (feature) => {
       const parkId = String(feature.properties.SITE_ID || "");
       const meta = parksMetaById.get(parkId);
-      return baseParkStyle(meta);
+      return baseParkStyle(meta, feature);
     },
     onEachFeature: (feature, layer) => {
       const siteId = feature.properties.SITE_ID;
@@ -289,41 +311,6 @@ function initDashboard(map, parksGeojson, parksMeta) {
       });
     }
   }).addTo(map);
-
-  // ---- 2.2 给有“加料信息”的公园画圆（如果你保留 parks-data.js）----
-  parksMeta.forEach((meta) => {
-    const layer = parkLayersById.get(meta.id);
-    if (!layer) return;
-    if (!meta.visitors_2024 || !meta.predator_index) return; // 只对 9 个重点公园画圆
-
-    const center = layer.getBounds().getCenter();
-    const radius = scaleVisitors(meta.visitors_2024);
-    const fillColor = colorByStatusYear(meta.statusYear);
-
-    const circle = L.circleMarker(center, {
-      radius,
-      fillColor,
-      color: fillColor,
-      weight: 1,
-      opacity: 0.8,
-      fillOpacity: 0.6
-    }).addTo(map);
-
-    circle.on("click", (e) => {
-      L.DomEvent.stopPropagation(e);
-      setActivePark(meta.id);
-    });
-
-    circle.bindPopup(
-      `<b>${meta.name}</b><br>` +
-        (meta.visitors_2024
-          ? `Visitors (2024): ${meta.visitors_2024.toLocaleString()}<br>`
-          : "") +
-        (meta.statusYear 
-          ? `Established: ${meta.statusYear}` 
-          : "")
-    );
-  });
 
   // ---- 3. 右侧列表 + 详情面板 ----
   function createParkCardHtml(meta) {
@@ -343,23 +330,23 @@ function initDashboard(map, parksGeojson, parksMeta) {
   }
 
   function matchFilter(meta, mode, keyword) {
-  if (!keyword) return true;          // 没有关键字就不过滤
-  keyword = keyword.toLowerCase();
+    if (!keyword) return true; // 没有关键字就不过滤
+    keyword = keyword.toLowerCase();
+    const name = (meta.name || "").toLowerCase();
+    const country = (meta.country || "").toLowerCase();
 
-  if (mode === "park") {
-    return (name + " " + country).includes(k);
-  }
-
-  if (mode === "country") {
-    return country.includes(k);
-  }
-
-  if (mode === "iucn") {
-      return (meta.iucnCat || "")
-        .toLowerCase()
-        .includes(keyword);
+    if (mode === "park") {
+      return name.includes(keyword) || country.includes(keyword);
     }
-  return true;
+
+     if (mode === "country") {
+      return country.includes(keyword);
+    }
+
+    if (mode === "iucn") {
+      return (meta.iucnCat || "").toLowerCase().includes(keyword);
+    }
+    return true;
 }
 
 
@@ -431,16 +418,6 @@ function initDashboard(map, parksGeojson, parksMeta) {
         }</p>
         <p><strong>Manager:</strong> ${meta.govType || "N/A"}</p>
         ${
-          meta.visitors_2024
-            ? `<p><strong>Visitors (2024):</strong> ${meta.visitors_2024.toLocaleString()}</p>`
-            : ""
-        }
-        ${
-          meta.predator_index
-            ? `<p><strong>Predator Index:</strong> ${meta.predator_index} / 5</p>`
-            : ""
-        }
-        ${
           mainSpecies
             ? `<p><strong>Key Species:</strong> ${mainSpecies}</p>`
             : ""
@@ -462,6 +439,34 @@ function initDashboard(map, parksGeojson, parksMeta) {
     `;
   }
 
+  function renderMapInfo(meta) {
+    if (!mapInfoEl) return;
+    if (!meta) {
+      mapInfoEl.classList.add("hidden");
+      mapInfoEl.innerHTML = "<p>点击公园查看详情</p>";
+      return;
+    }
+
+    const tags = (meta.main_species || [])
+      .map((s) => `<span class="tag">${s}</span>`)
+      .join("");
+
+    mapInfoEl.classList.remove("hidden");
+    mapInfoEl.innerHTML = `
+      <div class="map-info-title">${meta.name}</div>
+      <div class="map-info-subtitle">${meta.country} · ${
+        meta.desigEng || "N/A"
+      }</div>
+      <div class="map-info-row"><strong>Year:</strong> ${
+        meta.statusYear || "N/A"
+      }</div>
+      <div class="map-info-row"><strong>Area:</strong> ${
+        meta.area_km2 ? meta.area_km2.toLocaleString() + " km²" : "N/A"
+      }</div>
+      ${tags ? `<div class="map-info-tags">${tags}</div>` : ""}
+    `;
+  }
+
   // ---- 4. 事件绑定 ----
   searchInput.addEventListener("input", renderParkList);
   filterRadios.forEach((radio) => {
@@ -472,13 +477,4 @@ function initDashboard(map, parksGeojson, parksMeta) {
   });
 
   renderParkList();
-}
-
-function colorByStatusYear(year) {
-  if (!year) return "#f7d8df";
-  if (year <= 1950) return "#8c5a2e";   
-  if (year <= 1975) return "#a96b3a";
-  if (year <= 1995) return "#c5834a";
-  if (year <= 2010) return "#d9a56a";
-  return "#e8d9b8";                   
 }
