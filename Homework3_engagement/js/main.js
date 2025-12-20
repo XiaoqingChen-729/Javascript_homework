@@ -1,96 +1,276 @@
-let map;              
-let currentTool = ""; // 以后画旅馆 / 停车场 / 观景区用
+/* Mara-Serengeti Design Studio
+   Fixes:
+   - Works whether JS is loaded from /js or root
+   - Doesn't crash if tool/score DOM ids differ
+   - Shows a helpful status message when Leaflet / tiles can't load
+*/
 
-// ================================
-// 1. 初始化地图
-// ================================
-async function initMap() {
-  map = L.map("map", {
-    zoomControl: true,
-    preferCanvas: true
-  }).setView([-2.1, 35.1], 7); 
+let map;
+let currentTool = "";
+let activeTileLayer = null;
 
-  L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution:
-      "© OpenStreetMap contributors · style by HOT · tiles by OSM France"
-  }).addTo(map);
+const TILE_SOURCES = [
+  {
+    name: "OSM HOT",
+    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+    options: {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors · style by HOT · tiles by OSM France",
+    },
+  },
+  {
+    name: "OSM Standard",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    options: {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors",
+    },
+  },
+  {
+    name: "Carto Light",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    options: {
+      maxZoom: 19,
+      subdomains: "abcd",
+      attribution: "© OpenStreetMap contributors · © CARTO",
+    },
+  },
+];
 
-  // 地图准备好之后，再初始化工具和交互
-  initDesignTools();
-  initScorePanel();
+function $(id) {
+  return document.getElementById(id);
 }
 
-// ================================
-// 2. 左下角“工具栏”交互（只是示例）
-// ================================
-function initDesignTools() {
-  const lodgeBtn   = document.getElementById("tool-lodge");
-  const parkingBtn = document.getElementById("tool-parking");
-  const viewBtn    = document.getElementById("tool-view");
+function setMapStatus(text, type = "info") {
+  const el = $("mapStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove("is-error", "is-ok");
+  if (type === "error") el.classList.add("is-error");
+  if (type === "ok") el.classList.add("is-ok");
+}
 
-  function setActiveTool(toolName) {
-    currentTool = toolName;
+function hideMapStatus() {
+  const el = $("mapStatus");
+  if (!el) return;
+  el.style.opacity = "0";
+  el.style.transform = "translate(-50%, -50%) scale(0.98)";
+  el.style.pointerEvents = "none";
+}
 
-    // 切换按钮高亮
-    [lodgeBtn, parkingBtn, viewBtn].forEach((btn) =>
-      btn.classList.remove("is-active")
-    );
-    if (toolName === "lodge")   lodgeBtn.classList.add("is-active");
-    if (toolName === "parking") parkingBtn.classList.add("is-active");
-    if (toolName === "view")    viewBtn.classList.add("is-active");
+async function waitForLeaflet(timeoutMs = 6000) {
+  if (window.L) return;
+  const started = Date.now();
+  await new Promise((resolve, reject) => {
+    const t = setInterval(() => {
+      if (window.L) {
+        clearInterval(t);
+        resolve();
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        clearInterval(t);
+        reject(new Error("Leaflet library not loaded"));
+      }
+    }, 50);
+  });
+}
+
+function attachTileHealth(layer, sourceIndex) {
+  let errorCount = 0;
+  const createdAt = Date.now();
+
+  layer.on("loading", () => {
+    setMapStatus(`Loading map tiles… (${TILE_SOURCES[sourceIndex].name})`);
+  });
+
+  layer.on("load", () => {
+    // Tiles loaded successfully
+    hideMapStatus();
+  });
+
+  layer.on("tileerror", () => {
+    errorCount += 1;
+
+    // If we quickly see many errors, try next tile source.
+    const elapsed = Date.now() - createdAt;
+    if (elapsed < 8000 && errorCount >= 8) {
+      const next = sourceIndex + 1;
+      if (next < TILE_SOURCES.length) {
+        setMapStatus(
+          `Tile load failed (${TILE_SOURCES[sourceIndex].name}). Switching…`,
+          "error"
+        );
+        useTileSource(next);
+      } else {
+        setMapStatus(
+          "Tiles failed to load. If you're offline or your network blocks map CDNs, the canvas will stay in blueprint mode.",
+          "error"
+        );
+      }
+    }
+  });
+}
+
+function useTileSource(index) {
+  if (!map) return;
+  const src = TILE_SOURCES[index];
+
+  if (activeTileLayer) {
+    try {
+      map.removeLayer(activeTileLayer);
+    } catch (_) {
+      // ignore
+    }
   }
 
-  lodgeBtn.addEventListener("click", () => setActiveTool("lodge"));
-  parkingBtn.addEventListener("click", () => setActiveTool("parking"));
-  viewBtn.addEventListener("click", () => setActiveTool("view"));
+  activeTileLayer = L.tileLayer(src.url, src.options);
+  attachTileHealth(activeTileLayer, index);
+  activeTileLayer.addTo(map);
+}
 
-  // 在地图上点一下，根据当前工具在那里“放”一个标记（先做一个最简单版本）
+function initMap() {
+  const mapEl = $("map");
+  if (!mapEl) {
+    console.error("#map element not found");
+    return;
+  }
+
+  setMapStatus("Initializing map…");
+
+  // Create map
+  map = L.map("map", {
+    zoomControl: true,
+    preferCanvas: true,
+  }).setView([-2.1, 35.1], 7);
+
+  // Try tile sources (with auto fallback)
+  useTileSource(0);
+
+  // Fix occasional blank render when container sizes settle after fonts load
+  setTimeout(() => map.invalidateSize(), 50);
+  window.addEventListener("resize", () => map.invalidateSize());
+
+  initDesignTools();
+  initScorePanel();
+  initSaveBrief();
+  initViewModeChips();
+}
+
+function initViewModeChips() {
+  const chips = Array.from(document.querySelectorAll('.ghost-chip[data-view]'));
+  const mapEl = $("map");
+  if (!chips.length || !mapEl) return;
+
+  chips.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      chips.forEach((b) => b.classList.remove("ghost-chip--active"));
+      btn.classList.add("ghost-chip--active");
+
+      const view = btn.getAttribute("data-view");
+      mapEl.setAttribute("data-mode", view);
+
+      // Small UX hint
+      if (view === "design") setMapStatus("Design view: place facilities on the canvas.", "ok");
+      if (view === "habitat") setMapStatus("Habitat view: imagine animal corridors & core zones.", "ok");
+      if (view === "traffic") setMapStatus("Traffic view: think about routes & congestion.", "ok");
+      setTimeout(hideMapStatus, 900);
+    });
+  });
+}
+
+function initDesignTools() {
+  const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
+
+  const setActiveTool = (toolName) => {
+    currentTool = toolName;
+    toolButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tool === toolName));
+  };
+
+  toolButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setActiveTool(btn.dataset.tool || "");
+    });
+  });
+
+  // Place markers on click
   map.on("click", (e) => {
     if (!currentTool) return;
 
-    let color = "#f47d85";
-    let label = "";
+    const spec = {
+      lodge: { label: "Lodge", color: "#d86e5b" },
+      parking: { label: "Parking", color: "#6f6f6f" },
+      restaurant: { label: "Restaurant", color: "#e7a868" },
+      view: { label: "Viewpoint", color: "#6aa3d7" },
+    };
 
-    if (currentTool === "lodge") {
-      label = "Lodge";
-      color = "#f47d85";
-    } else if (currentTool === "parking") {
-      label = "Parking";
-      color = "#8c8c8c";
-    } else if (currentTool === "view") {
-      label = "View";
-      color = "#4c8bf5";
-    }
+    const s = spec[currentTool] || { label: currentTool, color: "#7c5b39" };
 
     L.circleMarker(e.latlng, {
       radius: 8,
-      color,
+      color: s.color,
       weight: 2,
-      fillColor: color,
-      fillOpacity: 0.7
+      fillColor: s.color,
+      fillOpacity: 0.85,
     })
       .addTo(map)
-      .bindTooltip(label, { permanent: false, direction: "top" });
+      .bindTooltip(s.label, { permanent: false, direction: "top" });
+
+    // Light “engagement” feedback
+    const scoreText = $("design-score") || $("score-text");
+    if (scoreText) {
+      scoreText.textContent = `Placed: ${s.label}. Eco↘ / Joy↗ (demo feedback).`;
+    }
   });
 }
 
-// ================================
-// 3. 右侧“得分”区域示例
-// ================================
 function initScorePanel() {
-  const scoreText = document.getElementById("score-text");
-  const btnCalc   = document.getElementById("btn-calc-score");
+  const scoreText = $("design-score") || $("score-text");
+  const btnCalc = $("btn-calc-score");
+
+  if (!btnCalc) return;
 
   btnCalc.addEventListener("click", () => {
-    // 现在先写死一个假分数，后面你可以根据用户设计来算
-    scoreText.textContent = "Your design score: 72 / 100 (demo)";
+    if (!scoreText) return;
+
+    // Demo score text (replace with real model later)
+    scoreText.textContent =
+      "Design brief (demo): You preserved 85% habitat continuity. Visitors have a 90% chance to see a full migration.";
   });
 }
 
-// ================================
-// 4. 页面加载完之后启动
-// ================================
-document.addEventListener("DOMContentLoaded", () => {
-  initMap().catch((err) => console.error(err));
+function initSaveBrief() {
+  const btnSave = $("btn-save-design");
+  if (!btnSave) return;
+
+  btnSave.addEventListener("click", () => {
+    const modal = $("briefModal");
+    if (!modal) return;
+    modal.classList.add("is-open");
+  });
+
+  const closeBtn = $("briefClose");
+  closeBtn?.addEventListener("click", () => {
+    $("briefModal")?.classList.remove("is-open");
+  });
+
+  $("briefModal")?.addEventListener("click", (e) => {
+    if (e.target?.id === "briefModal") {
+      $("briefModal")?.classList.remove("is-open");
+    }
+  });
+}
+
+// Boot
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    await waitForLeaflet();
+    initMap();
+  } catch (err) {
+    console.error(err);
+    setMapStatus(
+      "Leaflet failed to load. If your network blocks CDNs, try a different CDN or run with internet access.",
+      "error"
+    );
+  }
 });

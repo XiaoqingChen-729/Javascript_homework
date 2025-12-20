@@ -5,18 +5,24 @@
   <title>Mara-Serengeti Design Studio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <!-- 手写风标题字体（可换你喜欢的） -->
+  <!-- Title fonts (optional) -->
   <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet CSS (CDN fallback) -->
   <link
+    id="leaflet-css"
     rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obC0OgME0="
-    crossorigin=""
+    href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';"
   />
-  <!-- 自己的样式 -->
-  <link rel="stylesheet" href="./css/style.css" />
+
+  <!-- App CSS (supports either ./css/style.css or ./style.css) -->
+  <link
+    id="app-css"
+    rel="stylesheet"
+    href="./css/style.css"
+    onerror="this.onerror=null;this.href='./style.css';"
+  />
 </head>
 
 <body>
@@ -26,9 +32,7 @@
       <!-- 顶部导航条 -->
       <header class="top-bar">
         <div class="top-bar-left">
-          <div class="app-icon">
-            <!-- 可以放一个小 logo，或者用背景图 -->
-          </div>
+          <div class="app-icon" aria-hidden="true"></div>
           <div class="app-title-block">
             <h1 class="app-title">Mara-Serengeti Design Studio</h1>
             <p class="app-subtitle">
@@ -40,7 +44,7 @@
         <div class="top-bar-right">
           <button class="top-icon-button" aria-label="Settings">⚙️</button>
           <button class="top-icon-button" aria-label="Help">❓</button>
-          <button class="primary-chip">Save Design</button>
+          <button id="btn-save-design" class="primary-chip">Save Design</button>
         </div>
       </header>
 
@@ -48,7 +52,7 @@
       <div class="sub-bar">
         <div class="sub-bar-left">
           <span class="sub-label">Scenario</span>
-          <select class="sub-select">
+          <select class="sub-select" id="scenario-select">
             <option>Dry season – classic migration</option>
             <option>Wet season – calving grounds</option>
             <option>High tourist season</option>
@@ -56,16 +60,20 @@
         </div>
         <div class="sub-bar-right">
           <span class="sub-label">Map view</span>
-          <button class="ghost-chip ghost-chip--active">Design view</button>
-          <button class="ghost-chip">Habitat view</button>
-          <button class="ghost-chip">Traffic view</button>
+          <button class="ghost-chip ghost-chip--active" data-view="design">Design view</button>
+          <button class="ghost-chip" data-view="habitat">Habitat view</button>
+          <button class="ghost-chip" data-view="traffic">Traffic view</button>
         </div>
       </div>
 
       <!-- 中间主区域：左边地图 + 右边三个 panel -->
       <main class="app-main">
         <section class="map-panel">
-          <div id="map"></div>
+          <div id="map" aria-label="Design map canvas">
+            <div id="mapStatus" class="map-status" role="status">
+              Loading map…
+            </div>
+          </div>
 
           <!-- 可以放路线长度、告警等小标签 -->
           <div class="map-overlay-badge">
@@ -80,7 +88,7 @@
           <section class="card scenario-card">
             <div class="card-header">
               <h2>Scenario</h2>
-              <button class="card-close-btn">×</button>
+              <button class="card-close-btn" aria-label="Close">×</button>
             </div>
             <p class="scenario-text">
               Wildebeest herds move between Mara River and the Serengeti plains.
@@ -154,9 +162,7 @@
               Calculate score
             </button>
 
-            <div id="design-score" class="design-score-text">
-              <!-- JS 可以在这里写反馈：“Great balance! You kept 80% of migration path open.” -->
-            </div>
+            <div id="design-score" class="design-score-text"></div>
           </section>
 
         </aside>
@@ -165,19 +171,19 @@
       <!-- 底部工具栏 -->
       <footer class="bottom-toolbar">
         <div class="toolbar-left">
-          <button class="tool-button">
+          <button id="tool-lodge" class="tool-button" data-tool="lodge" data-tooltip="Eco −6 · Joy +4">
             <span class="tool-icon">🏕️</span>
             <span class="tool-label">Lodge</span>
           </button>
-          <button class="tool-button">
+          <button id="tool-parking" class="tool-button" data-tool="parking" data-tooltip="Eco −10 · Joy +8">
             <span class="tool-icon">🅿️</span>
             <span class="tool-label">Parking</span>
           </button>
-          <button class="tool-button">
+          <button id="tool-restaurant" class="tool-button" data-tool="restaurant" data-tooltip="Eco −7 · Joy +10">
             <span class="tool-icon">🍽️</span>
             <span class="tool-label">Restaurant</span>
           </button>
-          <button class="tool-button">
+          <button id="tool-view" class="tool-button" data-tool="view" data-tooltip="Eco −1 · Joy +12">
             <span class="tool-icon">👀</span>
             <span class="tool-label">Viewpoint</span>
           </button>
@@ -185,7 +191,7 @@
 
         <div class="toolbar-right">
           <span class="toolbar-text">
-            © OpenStreetMap contributors · style by HOT · tiles by OSM France · Powered by Leaflet
+            © OpenStreetMap contributors · Powered by Leaflet
           </span>
         </div>
       </footer>
@@ -193,14 +199,18 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS (CDN fallback) -->
   <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJ2RGuK2/Z9W+KkIyyxNV1lvTlZBo="
-    crossorigin=""
+    id="leaflet-js"
+    src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"
+    onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';"
   ></script>
 
-  <!-- 自己的 JS -->
-  <script src="./js/main.js"></script>
+  <!-- App JS (supports either ./js/main.js or ./main.js) -->
+  <script
+    id="app-js"
+    src="./js/main.js"
+    onerror="this.onerror=null;this.src='./main.js';"
+  ></script>
 </body>
 </html>
