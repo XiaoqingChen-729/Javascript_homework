@@ -1,13 +1,136 @@
-/* Mara-Serengeti Design Studio
-   Fixes:
-   - Works whether JS is loaded from /js or root
-   - Doesn't crash if tool/score DOM ids differ
-   - Shows a helpful status message when Leaflet / tiles can't load
+/*
+  Mara–Serengeti Design Studio (single-page web app)
+  - Full "workbench" canvas map (Leaflet)
+  - Floating toolbox dock with tooltips
+  - HUD gauges (Eco-Health / Visitor Joy) with realtime micro-feedback
+  - Influence radius rings (red = impact, green = view)
+  - No-go zones w/ hatched fill
+  - Cute AI critic bubble (Ranger Leo)
+  - Save Design -> narrative brief (dialog)
+
+  Notes:
+  - Tries to load Leaflet from CDN if it's not already present.
+  - Works when files are in root OR in /css + /js.
 */
 
-let map;
-let currentTool = "";
+// -----------------------------
+// Utilities
+// -----------------------------
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function nowISO() {
+  const d = new Date();
+  return d.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function setMapStatus(text, type = "info") {
+  const el = $("mapStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove("is-error", "is-ok");
+  if (type === "error") el.classList.add("is-error");
+  if (type === "ok") el.classList.add("is-ok");
+  el.style.opacity = "1";
+  el.style.pointerEvents = "none";
+}
+
+function hideMapStatus(delayMs = 650) {
+  const el = $("mapStatus");
+  if (!el) return;
+  window.setTimeout(() => {
+    el.style.opacity = "0";
+  }, delayMs);
+}
+
+function toastAI(msg, mood = "neutral") {
+  const ai = $("aiText");
+  if (!ai) return;
+  ai.textContent = msg;
+  ai.dataset.mood = mood;
+  ai.classList.remove("is-pop");
+  // restart animation
+  void ai.offsetWidth;
+  ai.classList.add("is-pop");
+}
+
+// -----------------------------
+// Leaflet loader (robust)
+// -----------------------------
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureLeaflet() {
+  if (window.L) return;
+
+  // Some environments block one CDN but allow the other.
+  const cdns = [
+    "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js",
+    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+  ];
+
+  let lastErr = null;
+  for (const url of cdns) {
+    try {
+      await loadScript(url);
+      if (window.L) return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr || new Error("Leaflet not available");
+}
+
+// -----------------------------
+// Map + scoring state
+// -----------------------------
+
+let map = null;
+let currentTool = "lodge";
 let activeTileLayer = null;
+
+let eco = 78;
+let joy = 62;
+
+const placed = []; // { id, type, latlng, inNoGo }
+
+// Overlays / layers
+let parkBoundaryLayer = null;
+let parkBoundary2Layer = null;
+
+let previewRed = null;
+let previewGreen = null;
+
+let noGoPolys = [];
+let noGoLayer = null;
+
+let habitatLayer = null;
+let trafficLayer = null;
+
+// GeoJSON load flags (MUST exist, or ensureExternalGeoLayers will crash)
+let geoDataLoading = false;
+let geoDataLoaded = false;
+
+// Tracks layers (built from point GeoJSON)
+let wildebeestTracksLayer = null;
+let lionTracksLayer = null;
+
+const DATA_DIR = "./data/";
+const PARK_BOUNDARY_URL = encodeURI(DATA_DIR + "Serengeti National Park.json");
+const PARK_BOUNDARY_2_URL = encodeURI(DATA_DIR + "Masai Mara.json");
+const WILDEBEEST_POINTS_URL = DATA_DIR + "combined_wildebeest_tsavo_points_sampled.geojson";
+const LION_POINTS_URL = DATA_DIR + "tsavo_lion_points.geojson";
 
 const TILE_SOURCES = [
   {
@@ -21,10 +144,7 @@ const TILE_SOURCES = [
   {
     name: "OSM Standard",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: {
-      maxZoom: 19,
-      attribution: "© OpenStreetMap contributors",
-    },
+    options: { maxZoom: 19, attribution: "© OpenStreetMap contributors" },
   },
   {
     name: "Carto Light",
@@ -37,74 +157,333 @@ const TILE_SOURCES = [
   },
 ];
 
-function $(id) {
-  return document.getElementById(id);
+// -----------------------------
+// Geometry helpers
+// -----------------------------
+
+function pointInPolygon(latlng, polygonLatLngs) {
+  // Ray casting in lon/lat space
+  const x = latlng.lng;
+  const y = latlng.lat;
+  let inside = false;
+
+  for (let i = 0, j = polygonLatLngs.length - 1; i < polygonLatLngs.length; j = i++) {
+    const xi = polygonLatLngs[i].lng;
+    const yi = polygonLatLngs[i].lat;
+    const xj = polygonLatLngs[j].lng;
+    const yj = polygonLatLngs[j].lat;
+
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi + 1e-12) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
 }
 
-function setMapStatus(text, type = "info") {
-  const el = $("mapStatus");
-  if (!el) return;
-  el.textContent = text;
-  el.classList.remove("is-error", "is-ok");
-  if (type === "error") el.classList.add("is-error");
-  if (type === "ok") el.classList.add("is-ok");
+function polygonAreaKm2(latlngs) {
+  // Shoelace in WebMercator meters (good enough for small areas)
+  // Convert lat/lng -> meters
+  const R = 6378137;
+  const pts = latlngs.map((p) => {
+    const x = (p.lng * Math.PI / 180) * R;
+    const y = Math.log(Math.tan(Math.PI / 4 + (p.lat * Math.PI / 180) / 2)) * R;
+    return { x, y };
+  });
+
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const j = (i + 1) % pts.length;
+    sum += pts[i].x * pts[j].y - pts[j].x * pts[i].y;
+  }
+  const areaM2 = Math.abs(sum) / 2;
+  return areaM2 / 1e6;
 }
 
-function hideMapStatus() {
-  const el = $("mapStatus");
-  if (!el) return;
-  el.style.opacity = "0";
-  el.style.transform = "translate(-50%, -50%) scale(0.98)";
-  el.style.pointerEvents = "none";
+function distMeters(a, b) {
+  return map ? map.distance(a, b) : 0;
 }
 
-async function waitForLeaflet(timeoutMs = 6000) {
-  if (window.L) return;
-  const started = Date.now();
-  await new Promise((resolve, reject) => {
-    const t = setInterval(() => {
-      if (window.L) {
-        clearInterval(t);
-        resolve();
-        return;
-      }
-      if (Date.now() - started > timeoutMs) {
-        clearInterval(t);
-        reject(new Error("Leaflet library not loaded"));
-      }
-    }, 50);
+// -----------------------------
+// GeoJSON helpers (fetch + build layers)
+// -----------------------------
+async function fetchGeoJSON(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to fetch ${url} (HTTP ${res.status})`);
+  return await res.json();
+}
+
+function makeBoundaryLayer(geojson, style, label) {
+  return L.geoJSON(geojson, {
+    interactive: false,
+    style,
+    onEachFeature: (f, layer) => {
+      const name =
+        f?.properties?.NAME ||
+        f?.properties?.Name ||
+        f?.properties?.name ||
+        label;
+      layer.bindTooltip(String(name), { sticky: true });
+    },
   });
 }
 
-function attachTileHealth(layer, sourceIndex) {
+/**
+ * Convert point tracks -> polylines.
+ * Assumes each feature has:
+ *  - geometry: Point [lng, lat]
+ *  - properties.individual_id (or similar)
+ *  - properties.timestamp (ISO string) (optional but recommended)
+ */
+function buildTracksFromPoints(pointsGeoJSON, opts) {
+  const {
+    idKey = "individual_id",
+    timeKey = "timestamp",
+    lineStyle = {},
+    labelPrefix = "Track",
+  } = opts || {};
+
+  const feats = pointsGeoJSON?.features || [];
+  const groups = new Map(); // id -> [{t, latlng}...]
+
+  for (const ft of feats) {
+    const geom = ft?.geometry;
+    if (!geom || geom.type !== "Point") continue;
+
+    const coords = geom.coordinates; // [lng, lat]
+    if (!Array.isArray(coords) || coords.length < 2) continue;
+
+    const props = ft.properties || {};
+    const id = props[idKey] ?? "unknown";
+
+    const tRaw = props[timeKey];
+    const t = tRaw ? new Date(tRaw).getTime() : NaN;
+
+    const latlng = L.latLng(coords[1], coords[0]);
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push({ t, latlng });
+  }
+
+  const out = L.layerGroup();
+
+  for (const [id, arr] of groups.entries()) {
+    // sort by time if possible
+    const sortable = arr.every((p) => Number.isFinite(p.t));
+    if (sortable) arr.sort((a, b) => a.t - b.t);
+
+    const latlngs = arr.map((p) => p.latlng);
+    if (latlngs.length < 2) continue;
+
+    const line = L.polyline(latlngs, {
+      weight: 3,
+      opacity: 0.75,
+      ...lineStyle,
+    }).bindTooltip(`${labelPrefix}: ${id}`, { sticky: true });
+
+    out.addLayer(line);
+  }
+
+  return out;
+}
+
+async function ensureExternalGeoLayers() {
+  if (!map) return;
+  if (geoDataLoaded || geoDataLoading) return;
+
+  geoDataLoading = true;
+  setMapStatus("Loading /data GeoJSON layers…");
+
+  try {
+    const [serengeti, masaiMara, wildePoints, lionPoints] = await Promise.all([
+      fetchGeoJSON(PARK_BOUNDARY_URL),
+      fetchGeoJSON(PARK_BOUNDARY_2_URL),
+      fetchGeoJSON(WILDEBEEST_POINTS_URL),
+      fetchGeoJSON(LION_POINTS_URL),
+    ]);
+
+    // 1) boundaries (two layers)
+   if (!parkBoundaryLayer) {
+      parkBoundaryLayer = L.geoJSON(serengeti, {
+        interactive: false,
+        style: {
+          color: "rgba(124,91,57,0.9)",
+          weight: 2,
+          fill: false,
+        },
+        onEachFeature: (f, layer) => {
+          const name =
+            f?.properties?.NAME ||
+            f?.properties?.Name ||
+            f?.properties?.name ||
+            "Serengeti";
+          layer.bindTooltip(String(name), { sticky: true });
+        },
+      });
+      parkBoundaryLayer.addTo(map);
+    }
+
+    if (!parkBoundary2Layer) {
+      parkBoundary2Layer = L.geoJSON(masaiMara, {
+        interactive: false,
+        style: {
+          color: "rgba(106,163,215,0.9)",
+          weight: 2,
+          dashArray: "6 10",
+          fill: false,
+        },
+        onEachFeature: (f, layer) => {
+          const name =
+            f?.properties?.NAME ||
+            f?.properties?.Name ||
+            f?.properties?.name ||
+            "Masai Mara";
+          layer.bindTooltip(String(name), { sticky: true });
+        },
+      });
+      parkBoundary2Layer.addTo(map);
+    }
+
+    const b = L.latLngBounds([]);
+    try {
+      if (parkBoundaryLayer) b.extend(parkBoundaryLayer.getBounds());
+      if (parkBoundary2Layer) b.extend(parkBoundary2Layer.getBounds());
+      if (b.isValid()) map.fitBounds(b.pad(0.06));
+    } catch (_) {}
+
+    // 2) tracks (build from points)
+   wildebeestTracksLayer = buildTracksFromPoints(wildePoints, {
+  idKey: "individual_id",        
+  timeKey: "timestamp",         
+  lineStyle: {
+    color: "rgba(47,125,95,0.9)",
+    dashArray: "10 8",
+  },
+  labelPrefix: "Wildebeest",
+});
+
+lionTracksLayer = buildTracksFromPoints(lionPoints, {
+  idKey: "individual_id",
+  timeKey: "timestamp",
+  lineStyle: {
+    color: "rgba(192,108,42,0.9)",
+    dashArray: "2 10",
+  },
+  labelPrefix: "Lion",
+});
+
+    // 3) fit bounds to both boundaries (optional but nice)
+    geoDataLoaded = true;
+
+     const mode = document.getElementById("map")?.dataset?.mode || "design";
+
+    if (mode === "habitat") {
+      buildHabitatOverlays();
+      if (habitatLayer && !map.hasLayer(habitatLayer)) {
+        habitatLayer.addTo(map);
+      }
+    }
+
+    applyWildlifeVisibility(mode);
+
+    setMapStatus("GeoJSON layers loaded.", "ok");
+    hideMapStatus(650);
+  } catch (e) {
+    console.warn(e);
+    setMapStatus(
+      "Failed to load /data GeoJSON (check Live Server + filenames).",
+      "error"
+    );
+  } finally {
+    geoDataLoading = false;
+  }
+}
+
+// -----------------------------
+// HUD gauges
+// -----------------------------
+
+function setGauge(arcId, value) {
+  const arc = $(arcId);
+  if (!arc) return;
+
+  // Stroke length of this semicircle path is ~157. (We can compute once, but keeping simple.)
+  const total = 157;
+  const v = clamp(value, 0, 100) / 100;
+  arc.style.strokeDasharray = `${total} ${total}`;
+  arc.style.strokeDashoffset = `${total * (1 - v)}`;
+}
+
+function bumpGauge(which) {
+  const el = document.querySelector(`.gauge[data-gauge="${which}"]`);
+  if (!el) return;
+  el.classList.remove("is-ping");
+  void el.offsetWidth;
+  el.classList.add("is-ping");
+}
+
+function updateScoresUI() {
+  eco = clamp(eco, 0, 100);
+  joy = clamp(joy, 0, 100);
+
+  const ecoEl = $("ecoValue");
+  const joyEl = $("joyValue");
+  if (ecoEl) ecoEl.textContent = String(Math.round(eco));
+  if (joyEl) joyEl.textContent = String(Math.round(joy));
+
+  setGauge("ecoArc", eco);
+  setGauge("joyArc", joy);
+
+  // Right panel bars
+  const placedCountEl = $("placedCount");
+
+  const meterEco = $("meterEco");
+  const meterJoy = $("meterJoy");
+  const meterNoGo = $("meterNoGo");
+
+  const meterEcoVal = $("meterEcoVal");
+  const meterJoyVal = $("meterJoyVal");
+  const meterNoGoVal = $("meterNoGoVal");
+
+  const noGoCount = placed.filter((p) => p.inNoGo).length;
+  const noGoPct = placed.length ? Math.round((noGoCount / placed.length) * 100) : 0;
+
+  if (placedCountEl) placedCountEl.textContent = String(placed.length);
+
+  if (meterEco) meterEco.style.width = `${Math.round(eco)}%`;
+  if (meterJoy) meterJoy.style.width = `${Math.round(joy)}%`;
+  if (meterNoGo) meterNoGo.style.width = `${noGoPct}%`;
+
+  if (meterEcoVal) meterEcoVal.textContent = String(Math.round(eco));
+  if (meterJoyVal) meterJoyVal.textContent = String(Math.round(joy));
+  if (meterNoGoVal) meterNoGoVal.textContent = String(noGoPct);
+}
+
+// -----------------------------
+// Tile layer fallback
+// -----------------------------
+
+function attachTileHealth(layer, idx) {
   let errorCount = 0;
   const createdAt = Date.now();
 
   layer.on("loading", () => {
-    setMapStatus(`Loading map tiles… (${TILE_SOURCES[sourceIndex].name})`);
+    setMapStatus(`Loading map tiles… (${TILE_SOURCES[idx].name})`);
   });
 
   layer.on("load", () => {
-    // Tiles loaded successfully
-    hideMapStatus();
+    setMapStatus("Canvas ready.", "ok");
+    hideMapStatus(550);
   });
 
   layer.on("tileerror", () => {
     errorCount += 1;
-
-    // If we quickly see many errors, try next tile source.
     const elapsed = Date.now() - createdAt;
     if (elapsed < 8000 && errorCount >= 8) {
-      const next = sourceIndex + 1;
+      const next = idx + 1;
       if (next < TILE_SOURCES.length) {
-        setMapStatus(
-          `Tile load failed (${TILE_SOURCES[sourceIndex].name}). Switching…`,
-          "error"
-        );
+        setMapStatus(`Tile load failed (${TILE_SOURCES[idx].name}). Switching…`, "error");
         useTileSource(next);
       } else {
         setMapStatus(
-          "Tiles failed to load. If you're offline or your network blocks map CDNs, the canvas will stay in blueprint mode.",
+          "Tiles failed to load. If your network blocks map CDNs, the workbench stays in blueprint mode.",
           "error"
         );
       }
@@ -112,165 +491,588 @@ function attachTileHealth(layer, sourceIndex) {
   });
 }
 
-function useTileSource(index) {
+function useTileSource(idx) {
   if (!map) return;
-  const src = TILE_SOURCES[index];
-
+  const src = TILE_SOURCES[idx];
   if (activeTileLayer) {
-    try {
-      map.removeLayer(activeTileLayer);
-    } catch (_) {
-      // ignore
-    }
+    try { map.removeLayer(activeTileLayer); } catch (_) {}
   }
-
   activeTileLayer = L.tileLayer(src.url, src.options);
-  attachTileHealth(activeTileLayer, index);
+  attachTileHealth(activeTileLayer, idx);
   activeTileLayer.addTo(map);
 }
 
-function initMap() {
-  const mapEl = $("map");
-  if (!mapEl) {
-    console.error("#map element not found");
+// -----------------------------
+// No-go zone + overlays
+// -----------------------------
+
+function ensureSvgPattern() {
+  // Leaflet creates an SVG element for vector layers. We inject a diagonal hatch pattern.
+  const svg = document.querySelector("#map svg");
+  if (!svg) return;
+  if (svg.querySelector("#noGoHatch")) return;
+
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern");
+  pattern.setAttribute("id", "noGoHatch");
+  pattern.setAttribute("patternUnits", "userSpaceOnUse");
+  pattern.setAttribute("width", "10");
+  pattern.setAttribute("height", "10");
+  pattern.setAttribute("patternTransform", "rotate(35)");
+
+  const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  rect.setAttribute("width", "10");
+  rect.setAttribute("height", "10");
+  rect.setAttribute("fill", "rgba(216,110,91,0.12)");
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", "0");
+  line.setAttribute("y1", "0");
+  line.setAttribute("x2", "0");
+  line.setAttribute("y2", "10");
+  line.setAttribute("stroke", "rgba(216,110,91,0.55)");
+  line.setAttribute("stroke-width", "4");
+
+  pattern.appendChild(rect);
+  pattern.appendChild(line);
+  defs.appendChild(pattern);
+  svg.insertBefore(defs, svg.firstChild);
+}
+
+function buildNoGoZones() {
+  // Rough demo polygons near the Mara / Serengeti region (not authoritative)
+  // Using a couple of sensitive core zones.
+  const zones = [
+    [
+      L.latLng(-1.482, 34.756),
+      L.latLng(-1.438, 34.825),
+      L.latLng(-1.483, 34.905),
+      L.latLng(-1.558, 34.876),
+      L.latLng(-1.547, 34.785),
+    ],
+    [
+      L.latLng(-1.638, 34.612),
+      L.latLng(-1.594, 34.662),
+      L.latLng(-1.618, 34.732),
+      L.latLng(-1.682, 34.704),
+      L.latLng(-1.686, 34.642),
+    ],
+  ];
+
+  noGoPolys = zones;
+
+  if (!noGoLayer) noGoLayer = L.layerGroup();
+  noGoLayer.clearLayers();
+
+  zones.forEach((poly) => {
+    L.polygon(poly, {
+      color: "rgba(216,110,91,0.85)",
+      weight: 2,
+      dashArray: "6 6",
+      fill: true,
+      fillColor: "rgba(216,110,91,0.18)",
+      fillOpacity: 0.85,
+    })
+      .addTo(noGoLayer)
+      .bindTooltip("No-go zone", { direction: "top" });
+  });
+
+  noGoLayer.addTo(map);
+  ensureSvgPattern();
+
+  // Badge area
+  const area = zones.reduce((acc, poly) => acc + polygonAreaKm2(poly), 0);
+  const badge = $("noGoBadge");
+  if (badge) badge.textContent = `No-go zone: ${area.toFixed(1)} km²`;
+}
+
+function buildHabitatOverlays() {
+  if (!habitatLayer) habitatLayer = L.layerGroup();
+  habitatLayer.clearLayers();
+
+  // If real tracks are ready, use them
+  if (wildebeestTracksLayer || lionTracksLayer) {
+    if (wildebeestTracksLayer) habitatLayer.addLayer(wildebeestTracksLayer);
+    if (lionTracksLayer) habitatLayer.addLayer(lionTracksLayer);
     return;
   }
 
-  setMapStatus("Initializing map…");
+  // Otherwise: fallback to your existing demo corridor
+  const path = [
+    L.latLng(-1.28, 34.93),
+    L.latLng(-1.37, 34.86),
+    L.latLng(-1.50, 34.78),
+    L.latLng(-1.62, 34.67),
+  ];
+
+  const line = L.polyline(path, {
+    color: "rgba(124,91,57,0.85)",
+    weight: 4,
+    dashArray: "10 8",
+    opacity: 0.9,
+  }).bindTooltip("Migration corridor (demo)", { sticky: true });
+
+  const water = [
+    L.circleMarker(L.latLng(-1.41, 34.87), { radius: 7, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
+    L.circleMarker(L.latLng(-1.58, 34.68), { radius: 7, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
+  ];
+
+  line.addTo(habitatLayer);
+  water.forEach((w) => w.addTo(habitatLayer).bindTooltip("Water source", { direction: "top" }));
+}
+
+function buildTrafficOverlays() {
+  if (!trafficLayer) trafficLayer = L.layerGroup();
+  trafficLayer.clearLayers();
+
+  // A simple access route (demo)
+  const route = [
+    L.latLng(-1.25, 34.80),
+    L.latLng(-1.36, 34.83),
+    L.latLng(-1.50, 34.86),
+    L.latLng(-1.63, 34.76),
+  ];
+
+  L.polyline(route, {
+    color: "rgba(231,168,104,0.95)",
+    weight: 5,
+    opacity: 0.85,
+  })
+    .addTo(trafficLayer)
+    .bindTooltip("Suggested access route (demo)", { sticky: true });
+}
+
+// -----------------------------
+// Tools + placement
+// -----------------------------
+
+function getToolSpec(tool) {
+  const btn = document.querySelector(`.tool-button[data-tool="${tool}"]`);
+  if (!btn) return null;
+
+  const ecoDelta = Number(btn.dataset.eco || "0");
+  const joyDelta = Number(btn.dataset.joy || "0");
+  const redRadius = Number(btn.dataset.redRadius || "3000");
+  const greenRadius = Number(btn.dataset.greenRadius || "5000");
+
+  const icon = btn.querySelector(".tool-icon")?.textContent || "•";
+  const label = btn.querySelector(".tool-label")?.textContent || tool;
+
+  const colorByTool = {
+    lodge: "rgba(216,110,91,0.95)",
+    parking: "rgba(90,90,90,0.85)",
+    restaurant: "rgba(231,168,104,0.95)",
+    view: "rgba(106,163,215,0.95)",
+  };
+
+  return {
+    tool,
+    ecoDelta,
+    joyDelta,
+    redRadius,
+    greenRadius,
+    icon,
+    label,
+    color: colorByTool[tool] || "rgba(124,91,57,0.95)",
+  };
+}
+
+function setActiveTool(tool) {
+  currentTool = tool;
+
+  document.querySelectorAll(".tool-button[data-tool]").forEach((b) => {
+    b.classList.toggle("is-active", b.dataset.tool === tool);
+  });
+
+  const spec = getToolSpec(tool);
+  if (!spec) return;
+
+  toastAI(`Placing ${spec.label}. Watch the red/green rings before you click.`, "neutral");
+  setPreviewRingsRadii(spec.redRadius, spec.greenRadius);
+}
+
+function setPreviewRingsRadii(redR, greenR) {
+  if (previewRed) previewRed.setRadius(redR);
+  if (previewGreen) previewGreen.setRadius(greenR);
+}
+
+function ensurePreviewRings(latlng) {
+  if (!previewRed) {
+    previewRed = L.circle(latlng, {
+      radius: 3500,
+      color: "rgba(216,110,91,0.9)",
+      weight: 2,
+      dashArray: "6 6",
+      fillColor: "rgba(216,110,91,0.08)",
+      fillOpacity: 0.25,
+      interactive: false,
+    }).addTo(map);
+  }
+
+  if (!previewGreen) {
+    previewGreen = L.circle(latlng, {
+      radius: 6500,
+      color: "rgba(156,191,123,0.95)",
+      weight: 2,
+      dashArray: "2 10",
+      fillColor: "rgba(156,191,123,0.06)",
+      fillOpacity: 0.2,
+      interactive: false,
+    }).addTo(map);
+  }
+}
+
+function updatePreviewRings(latlng) {
+  ensurePreviewRings(latlng);
+  previewRed.setLatLng(latlng);
+  previewGreen.setLatLng(latlng);
+}
+
+function isInNoGo(latlng) {
+  return noGoPolys.some((poly) => pointInPolygon(latlng, poly));
+}
+
+function facilityIconHtml(spec, isDanger) {
+  const danger = isDanger ? " facility-marker--danger" : "";
+  return `<div class="facility-marker facility-marker--${spec.tool}${danger}"><span class="facility-emoji">${spec.icon}</span></div>`;
+}
+
+function placeFacility(latlng) {
+  const spec = getToolSpec(currentTool);
+  if (!spec) return;
+
+  const inNoGo = isInNoGo(latlng);
+
+  // Extra scoring factors (simple demo):
+  // - if inside no-go: huge eco penalty
+  // - if close to migration corridor (habitat path points): joy bonus
+  // - if too close to no-go boundary: eco penalty
+
+  let ecoDelta = spec.ecoDelta;
+  let joyDelta = spec.joyDelta;
+
+  if (inNoGo) {
+    ecoDelta -= 25;
+    toastAI("Hey! Don’t build inside a sensitive core zone — wildlife needs quiet space.", "warn");
+  } else {
+    // tiny positive reinforcement
+    toastAI("Nice placement. Trade-offs look reasonable.", "good");
+  }
+
+  // Proximity bonuses/penalties
+  const waterPts = [L.latLng(-1.41, 34.87), L.latLng(-1.58, 34.68)];
+  const corePts = [L.latLng(-1.52, 34.83), L.latLng(-1.63, 34.66)];
+
+  const minWater = Math.min(...waterPts.map((p) => distMeters(p, latlng)));
+  const minCore = Math.min(...corePts.map((p) => distMeters(p, latlng)));
+
+  if (minWater < 3500) {
+    joyDelta += 6;
+    toastAI("Good view potential near water — visitors will love it.", "good");
+  }
+
+  if (minCore < 4200) {
+    ecoDelta -= 8;
+    toastAI("Careful — you’re close to a core habitat area. Eco health will drop.", "warn");
+  }
+
+  // Apply score changes
+  eco += ecoDelta;
+  joy += joyDelta;
+
+  bumpGauge("eco");
+  bumpGauge("joy");
+
+  // Marker
+  const icon = L.divIcon({
+    className: "", // we'll use our own inner HTML
+    html: facilityIconHtml(spec, inNoGo),
+    iconSize: [34, 34],
+    iconAnchor: [17, 28],
+  });
+
+  const m = L.marker(latlng, { icon, riseOnHover: true }).addTo(map);
+  const id = crypto?.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+
+  m.on("add", () => {
+    const el = m.getElement()?.querySelector(".facility-marker");
+    if (!el) return;
+    el.classList.add("is-bounce");
+    setTimeout(() => el.classList.remove("is-bounce"), 260);
+  });
+
+  m.bindTooltip(`${spec.label}${inNoGo ? " (No-go!)" : ""}`, { direction: "top" });
+
+  m.on("click", () => {
+    toastAI(`Selected: ${spec.label}. You can undo or clear from the dock.`, "neutral");
+  });
+
+  placed.push({ id, type: spec.tool, latlng, inNoGo, marker: m, ecoDelta, joyDelta });
+
+  updateScoresUI();
+
+  // Little "duang" on dock for positive feedback
+  const dock = document.querySelector(".dock");
+  if (dock) {
+    dock.classList.remove("is-duang");
+    void dock.offsetWidth;
+    dock.classList.add("is-duang");
+  }
+}
+
+function undoLast() {
+  const last = placed.pop();
+  if (!last) {
+    toastAI("Nothing to undo yet.", "neutral");
+    return;
+  }
+
+  // Revert scores
+  eco -= last.ecoDelta;
+  joy -= last.joyDelta;
+
+  // Remove marker
+  try { map.removeLayer(last.marker); } catch (_) {}
+
+  toastAI("Undone. Try another placement for a better balance.", "neutral");
+  updateScoresUI();
+}
+
+function clearAll() {
+  placed.forEach((p) => {
+    try { map.removeLayer(p.marker); } catch (_) {}
+  });
+  placed.length = 0;
+
+  eco = 78;
+  joy = 62;
+
+  toastAI("Cleared. Fresh canvas!");
+  updateScoresUI();
+}
+
+// -----------------------------
+// View mode chips
+// -----------------------------
+
+function setViewMode(mode) {
+  const mapEl = $("map");
+  if (mapEl) mapEl.dataset.mode = mode;
+}
+
+function applyWildlifeVisibility(mode) {
+  if (!map) return;
+
+  // Always keep boundaries visible (workbench context)
+  for (const lyr of [parkBoundaryLayer, parkBoundary2Layer]) {
+    if (lyr && !map.hasLayer(lyr)) lyr.addTo(map);
+  }
+  try {
+    parkBoundaryLayer?.bringToFront?.();
+    parkBoundary2Layer?.bringToFront?.();
+  } catch (_) {}
+
+  // Trails: show only in habitat view (avoid clutter)
+  const showTrails = mode === "habitat";
+  for (const lyr of [wildebeestTracksLayer, lionTracksLayer]) {
+    if (!lyr) continue;
+    const has = map.hasLayer(lyr);
+    if (showTrails && !has) lyr.addTo(map);
+    if (!showTrails && has) map.removeLayer(lyr);
+  }
+}
+
+
+// -----------------------------
+// Save brief
+// -----------------------------
+
+function personalityFromScores(e, j) {
+  if (e >= 80 && j >= 70) return "balanced conservationist";
+  if (e >= 80) return "gentle conservationist";
+  if (j >= 75) return "experience-first planner";
+  if (e < 45 && j < 45) return "confused newcomer (needs iteration)";
+  if (e < 45) return "aggressive developer";
+  return "pragmatic designer";
+}
+
+function openBrief() {
+  const dlg = $("brief-modal");
+  if (!dlg) return;
+
+  const noGoCount = placed.filter((p) => p.inNoGo).length;
+  const noGoPct = placed.length ? Math.round((noGoCount / placed.length) * 100) : 0;
+
+  const persona = personalityFromScores(eco, joy);
+  const corridor = eco >= 70 ? "kept most migration corridors intact" : "fragmented some corridors";
+  const wildlife = eco >= 70 ? "wildlife disturbance is relatively low" : "wildlife stress may increase";
+  const visitor = joy >= 70 ? "visitors will have a high chance of memorable sightings" : "visitors may need longer detours to see wildlife";
+
+  const text = [
+    `《Mara–Serengeti Future Blueprint》`,
+    `Generated: ${nowISO()}`,
+    "",
+    `You are a **${persona}**.`,
+    `Eco-Health: **${Math.round(eco)}%** · Visitor Joy: **${Math.round(joy)}%** · No-go placement rate: **${noGoPct}%**.`,
+    "",
+    `In your plan, you ${corridor}. Overall, ${wildlife}, while ${visitor}.`,
+    "",
+    `Next step suggestions:`,
+    `- Move any facilities away from red rings that overlap core habitats.`,
+    `- Place viewpoints near water sources (green rings) for big Joy boosts.`,
+    `- Keep restaurants and parking clustered to reduce traffic footprint.`,
+  ].join("\n");
+
+  const content = $("brief-content");
+  if (content) content.textContent = text;
+
+  if (typeof dlg.showModal === "function") dlg.showModal();
+  else dlg.setAttribute("open", "open");
+}
+
+function closeBrief() {
+  const dlg = $("brief-modal");
+  if (!dlg) return;
+  if (typeof dlg.close === "function") dlg.close();
+  else dlg.removeAttribute("open");
+}
+
+async function copyBrief() {
+  const content = $("brief-content");
+  if (!content) return;
+  const text = content.textContent || "";
+  try {
+    await navigator.clipboard.writeText(text);
+    toastAI("Copied your blueprint text.", "good");
+  } catch (_) {
+    toastAI("Copy failed (browser permission). You can still select text manually.", "warn");
+  }
+}
+
+// -----------------------------
+// Boot
+// -----------------------------
+async function init() {
+  setMapStatus("Initializing workbench…");
+
+  try {
+    await ensureLeaflet();
+  } catch (err) {
+    console.error(err);
+    setMapStatus(
+      "Leaflet failed to load. If your network blocks CDNs, download Leaflet locally or use a different network.",
+      "error"
+    );
+    return;
+  }
 
   // Create map
   map = L.map("map", {
     zoomControl: true,
     preferCanvas: true,
-  }).setView([-2.1, 35.1], 7);
+    attributionControl: false,
+  }).setView([-1.52, 34.85], 10);
 
-  // Try tile sources (with auto fallback)
+  // Tile sources with fallback
   useTileSource(0);
 
-  // Fix occasional blank render when container sizes settle after fonts load
-  setTimeout(() => map.invalidateSize(), 50);
+  // Make sure SVG exists for patterns
+  map.on("layeradd", () => ensureSvgPattern());
+  map.whenReady(() => {
+    ensureSvgPattern();
+    buildNoGoZones();
+    buildHabitatOverlays();
+    buildTrafficOverlays();
+    updateScoresUI();
+ 
+    ensureExternalGeoLayers().catch((e) => console.error(e));
+
+  geoDataLoaded = true;
+
+  const mode = $("map")?.dataset?.mode || "design";
+  applyWildlifeVisibility(mode);
+
+    setMapStatus("GeoJSON layers loaded.", "ok");
+    hideMapStatus(650);
+
+    setMapStatus("Canvas ready.", "ok");
+    hideMapStatus(700);
+  });
+
+  // Fix render after layout settles
+  setTimeout(() => map.invalidateSize(), 80);
   window.addEventListener("resize", () => map.invalidateSize());
 
-  initDesignTools();
-  initScorePanel();
-  initSaveBrief();
-  initViewModeChips();
-}
-
-function initViewModeChips() {
-  const chips = Array.from(document.querySelectorAll('.ghost-chip[data-view]'));
-  const mapEl = $("map");
-  if (!chips.length || !mapEl) return;
-
-  chips.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      chips.forEach((b) => b.classList.remove("ghost-chip--active"));
-      btn.classList.add("ghost-chip--active");
-
-      const view = btn.getAttribute("data-view");
-      mapEl.setAttribute("data-mode", view);
-
-      // Small UX hint
-      if (view === "design") setMapStatus("Design view: place facilities on the canvas.", "ok");
-      if (view === "habitat") setMapStatus("Habitat view: imagine animal corridors & core zones.", "ok");
-      if (view === "traffic") setMapStatus("Traffic view: think about routes & congestion.", "ok");
-      setTimeout(hideMapStatus, 900);
-    });
+  // Dock tools
+  document.querySelectorAll(".tool-button[data-tool]").forEach((btn) => {
+    btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
   });
-}
+  setActiveTool("lodge");
 
-function initDesignTools() {
-  const toolButtons = Array.from(document.querySelectorAll('.tool-button[data-tool]'));
+  // Undo / clear
+  $("btn-undo")?.addEventListener("click", undoLast);
+  $("btn-clear")?.addEventListener("click", clearAll);
 
-  const setActiveTool = (toolName) => {
-    currentTool = toolName;
-    toolButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.tool === toolName));
-  };
+  // Preview rings follow cursor
+  map.on("mousemove", (e) => updatePreviewRings(e.latlng));
 
-  toolButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      setActiveTool(btn.dataset.tool || "");
+  // Place on click
+  map.on("click", (e) => placeFacility(e.latlng));
+
+  // View chips
+  document.querySelectorAll('.ghost-chip[data-view]').forEach((chip) => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll('.ghost-chip[data-view]').forEach((c) => c.classList.remove("ghost-chip--active"));
+      chip.classList.add("ghost-chip--active");
+      setViewMode(chip.dataset.view);
     });
   });
 
-  // Place markers on click
-  map.on("click", (e) => {
-    if (!currentTool) return;
-
-    const spec = {
-      lodge: { label: "Lodge", color: "#d86e5b" },
-      parking: { label: "Parking", color: "#6f6f6f" },
-      restaurant: { label: "Restaurant", color: "#e7a868" },
-      view: { label: "Viewpoint", color: "#6aa3d7" },
-    };
-
-    const s = spec[currentTool] || { label: currentTool, color: "#7c5b39" };
-
-    L.circleMarker(e.latlng, {
-      radius: 8,
-      color: s.color,
-      weight: 2,
-      fillColor: s.color,
-      fillOpacity: 0.85,
-    })
-      .addTo(map)
-      .bindTooltip(s.label, { permanent: false, direction: "top" });
-
-    // Light “engagement” feedback
-    const scoreText = $("design-score") || $("score-text");
-    if (scoreText) {
-      scoreText.textContent = `Placed: ${s.label}. Eco↘ / Joy↗ (demo feedback).`;
+  // Scenario changes (demo text only)
+  $("scenario-select")?.addEventListener("change", (e) => {
+    const v = e.target.value;
+    if (v === "dry") {
+      toastAI("Dry season: herds cluster near the Mara River. Plan viewpoints carefully.");
+    } else if (v === "wet") {
+      toastAI("Wet season: calving grounds shift south. Keep routes flexible.");
+    } else {
+      toastAI("High tourist season: reduce congestion and spread facilities.");
     }
   });
-}
 
-function initScorePanel() {
-  const scoreText = $("design-score") || $("score-text");
-  const btnCalc = $("btn-calc-score");
-
-  if (!btnCalc) return;
-
-  btnCalc.addEventListener("click", () => {
-    if (!scoreText) return;
-
-    // Demo score text (replace with real model later)
-    scoreText.textContent =
-      "Design brief (demo): You preserved 85% habitat continuity. Visitors have a 90% chance to see a full migration.";
-  });
-}
-
-function initSaveBrief() {
-  const btnSave = $("btn-save-design");
-  if (!btnSave) return;
-
-  btnSave.addEventListener("click", () => {
-    const modal = $("briefModal");
-    if (!modal) return;
-    modal.classList.add("is-open");
+  // Close side cards
+  document.querySelectorAll("[data-close]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const sel = b.getAttribute("data-close");
+      if (!sel) return;
+      const el = document.querySelector(sel);
+      el?.classList.add("is-hidden");
+    });
   });
 
-  const closeBtn = $("briefClose");
-  closeBtn?.addEventListener("click", () => {
-    $("briefModal")?.classList.remove("is-open");
+  // Save brief
+  $("btn-save-design")?.addEventListener("click", openBrief);
+  $("btn-close-brief")?.addEventListener("click", closeBrief);
+  $("btn-ok-brief")?.addEventListener("click", closeBrief);
+  $("btn-copy-brief")?.addEventListener("click", copyBrief);
+  $("brief-modal")?.addEventListener("click", (e) => {
+    // clicking backdrop closes
+    if (e.target?.id === "brief-modal") closeBrief();
   });
 
-  $("briefModal")?.addEventListener("click", (e) => {
-    if (e.target?.id === "briefModal") {
-      $("briefModal")?.classList.remove("is-open");
+  // Calculate score
+  $("btn-calc-score")?.addEventListener("click", () => {
+    const noGoCount = placed.filter((p) => p.inNoGo).length;
+    const noGoPct = placed.length ? Math.round((noGoCount / placed.length) * 100) : 0;
+
+    const final = clamp(Math.round((eco * 0.55 + joy * 0.45) - noGoPct * 0.35), 0, 100);
+    const out = $("design-score");
+    if (out) {
+      out.textContent = `Final score: ${final}/100  ·  Eco ${Math.round(eco)}%  ·  Joy ${Math.round(joy)}%  ·  No-go ${noGoPct}%`;
     }
+
+    toastAI(final >= 80 ? "That’s a strong balance. Nice work!" : "Iterate a bit: reduce core-zone overlap for better Eco.");
   });
 }
 
-// Boot
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await waitForLeaflet();
-    initMap();
-  } catch (err) {
-    console.error(err);
-    setMapStatus(
-      "Leaflet failed to load. If your network blocks CDNs, try a different CDN or run with internet access.",
-      "error"
-    );
-  }
-});
+document.addEventListener("DOMContentLoaded", init);
