@@ -100,8 +100,8 @@ let map = null;
 let currentTool = "lodge";
 let activeTileLayer = null;
 
-let eco = 78;
-let joy = 62;
+let eco = 100;
+let joy = 0;
 
 const placed = []; // { id, type, latlng, inNoGo }
 
@@ -118,6 +118,9 @@ let noGoLayer = null;
 let habitatLayer = null;
 let trafficLayer = null;
 
+let roadsLayer = null;
+let roadsLoading = false;
+
 // GeoJSON load flags (MUST exist, or ensureExternalGeoLayers will crash)
 let geoDataLoading = false;
 let geoDataLoaded = false;
@@ -126,11 +129,52 @@ let geoDataLoaded = false;
 let wildebeestTracksLayer = null;
 let lionTracksLayer = null;
 
+// Simple facility descriptions for the side panel
+const TOOL_INFO = {
+  lodge: {
+    title: "Lodge",
+    blurb: "Purpose: overnight stays and a base for safaris. Impact: medium footprint—keep outside core habitats. Visitor: high comfort.",
+  },
+  activity: {
+    title: "Activity",
+    blurb: "Purpose: guided experiences (walks, crafts, culture). Impact: keep group size/paths limited to avoid wildlife stress. Visitor: memorable if near viewpoints.",
+  },
+  parking: {
+    title: "Parking",
+    blurb: "Purpose: staging for shuttles and day trips. Impact: can fragment habitat—cluster with restaurants/lodges to reduce sprawl.",
+  },
+  restaurant: {
+    title: "Restaurant",
+    blurb: "Purpose: meals and rest stops. Impact: service traffic and waste—site near roads, away from wildlife corridors.",
+  },
+  camp: {
+    title: "Camp",
+    blurb: "Purpose: low-impact overnight stay. Impact: smaller footprint but needs buffer from wildlife routes. Visitor: immersive if placed responsibly.",
+  },
+  shuttle: {
+    title: "Shuttle",
+    blurb: "Purpose: move guests efficiently between hubs. Impact: reduces private car traffic; keep routes on existing roads to protect habitats.",
+  },
+  view: {
+    title: "Viewpoint",
+    blurb: "Purpose: quiet wildlife viewing spot. Impact: light footprint if off-road travel is limited. Visitor: big joy boost near water/habitats.",
+  },
+  hide: {
+    title: "Hide",
+    blurb: "Purpose: concealed wildlife viewing. Impact: minimal if entry paths are controlled; excellent visitor experience when near water/cover.",
+  },
+  research: {
+    title: "Research",
+    blurb: "Purpose: monitoring and science. Impact: moderate but justified—site near access to reduce patrol disturbance; supports conservation outcomes.",
+  },
+};
+
 const DATA_DIR = "./data/";
 const PARK_BOUNDARY_URL = encodeURI(DATA_DIR + "Serengeti National Park.json");
 const PARK_BOUNDARY_2_URL = encodeURI(DATA_DIR + "Masai Mara.json");
 const WILDEBEEST_POINTS_URL = DATA_DIR + "combined_wildebeest_tsavo_points_sampled.geojson";
 const LION_POINTS_URL = DATA_DIR + "tsavo_lion_points.geojson";
+const ROADS_URL = DATA_DIR + "road.geojson"; 
 
 const TILE_SOURCES = [
   {
@@ -282,6 +326,32 @@ function buildTracksFromPoints(pointsGeoJSON, opts) {
   }
 
   return out;
+}
+
+async function ensureRoadLayer() {
+  if (!map) return;
+  if (roadsLayer || roadsLoading) return; 
+
+  roadsLoading = true;
+  try {
+    const roadsGeo = await fetchGeoJSON(ROADS_URL);
+
+    roadsLayer = L.geoJSON(roadsGeo, {
+      filter: (f) => {
+        const t = f?.geometry?.type;
+        return t === "LineString" || t === "MultiLineString";
+      },
+      style: () => ({
+        color: "rgba(231,168,104,0.95)",
+        weight: 2,
+        opacity: 0.85,
+      }),
+    });
+  } catch (e) {
+    console.warn("Failed to load road.geojson", e);
+  } finally {
+    roadsLoading = false;
+  }
 }
 
 async function ensureExternalGeoLayers() {
@@ -544,18 +614,18 @@ function buildNoGoZones() {
   // Using a couple of sensitive core zones.
   const zones = [
     [
-      L.latLng(-1.482, 34.756),
-      L.latLng(-1.438, 34.825),
-      L.latLng(-1.483, 34.905),
-      L.latLng(-1.558, 34.876),
-      L.latLng(-1.547, 34.785),
+      L.latLng(-2.192230, 35.032646),   
+      L.latLng(-2.233689, 34.975583), 
+      L.latLng(-2.300771, 34.997379),  
+      L.latLng(-2.300771, 35.067913),  
+      L.latLng(-2.233689, 35.089709),
     ],
     [
-      L.latLng(-1.638, 34.612),
-      L.latLng(-1.594, 34.662),
-      L.latLng(-1.618, 34.732),
-      L.latLng(-1.682, 34.704),
-      L.latLng(-1.686, 34.642),
+      L.latLng(-2.792762, 34.528709),   
+      L.latLng(-2.834221, 34.471646),  
+      L.latLng(-2.901303, 34.493442),  
+      L.latLng(-2.901303, 34.563976), 
+     L.latLng(-2.834221, 34.585772),
     ],
   ];
 
@@ -613,33 +683,22 @@ function buildHabitatOverlays() {
   }).bindTooltip("Migration corridor (demo)", { sticky: true });
 
   const water = [
-    L.circleMarker(L.latLng(-1.41, 34.87), { radius: 7, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
-    L.circleMarker(L.latLng(-1.58, 34.68), { radius: 7, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
+    L.circleMarker(L.latLng(-2.66, 34.79), { radius: 7, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
+    L.circleMarker(L.latLng(-2.99, 34.99), { radius: 14, color: "rgba(90,150,210,0.95)", weight: 2, fillOpacity: 0.9 }),
   ];
 
   line.addTo(habitatLayer);
   water.forEach((w) => w.addTo(habitatLayer).bindTooltip("Water source", { direction: "top" }));
 }
 
-function buildTrafficOverlays() {
+async function buildTrafficOverlays() {
   if (!trafficLayer) trafficLayer = L.layerGroup();
   trafficLayer.clearLayers();
 
-  // A simple access route (demo)
-  const route = [
-    L.latLng(-1.25, 34.80),
-    L.latLng(-1.36, 34.83),
-    L.latLng(-1.50, 34.86),
-    L.latLng(-1.63, 34.76),
-  ];
-
-  L.polyline(route, {
-    color: "rgba(231,168,104,0.95)",
-    weight: 5,
-    opacity: 0.85,
-  })
-    .addTo(trafficLayer)
-    .bindTooltip("Suggested access route (demo)", { sticky: true });
+  await ensureRoadLayer();
+  if (roadsLayer) {
+    trafficLayer.addLayer(roadsLayer);
+  }
 }
 
 // -----------------------------
@@ -659,10 +718,16 @@ function getToolSpec(tool) {
   const label = btn.querySelector(".tool-label")?.textContent || tool;
 
   const colorByTool = {
-    lodge: "rgba(216,110,91,0.95)",
-    parking: "rgba(90,90,90,0.85)",
-    restaurant: "rgba(231,168,104,0.95)",
-    view: "rgba(106,163,215,0.95)",
+    lodge: "rgba(216,110,91,0.95)",      
+    parking: "rgba(90,90,90,0.85)",       
+    restaurant: "rgba(231,168,104,0.95)", 
+    view: "rgba(106,163,215,0.95)",       
+
+    activity: "rgba(255,189,120,0.95)",   
+    hide: "rgba(110,180,155,0.95)",       
+    campfire: "rgba(255,140,110,0.95)",   
+    research: "rgba(155,130,220,0.95)",   
+    shuttle: "rgba(120,120,200,0.95)",    
   };
 
   return {
@@ -677,6 +742,69 @@ function getToolSpec(tool) {
   };
 }
 
+function updateSelectedPanel(spec) {
+  const typeEl = $("selType");
+  const ecoEl = $("selEco");
+  const joyEl = $("selJoy");
+  const descEl = $("selDesc");
+
+  if (!spec) {
+    if (typeEl) typeEl.textContent = "—";
+    if (ecoEl) ecoEl.textContent = "—";
+    if (joyEl) joyEl.textContent = "—";
+    if (descEl) descEl.textContent = "Pick a tool to see what it does.";
+    return;
+  }
+
+  const info = TOOL_INFO[spec.tool] || {};
+  if (typeEl) typeEl.textContent = info.title || spec.label || spec.tool;
+  if (ecoEl) ecoEl.textContent = `${spec.ecoDelta > 0 ? "+" : ""}${spec.ecoDelta}`;
+  if (joyEl) joyEl.textContent = `${spec.joyDelta > 0 ? "+" : ""}${spec.joyDelta}`;
+  if (descEl) {
+    descEl.textContent =
+      info.blurb ||
+      "Purpose: plan ahead. Impact: varies by location. Visitor: place thoughtfully for best experience.";
+  }
+}
+
+function renderFacilityList() {
+  const list = $("facilityList");
+  if (!list) return;
+  list.innerHTML = "";
+
+  Object.entries(TOOL_INFO).forEach(([key, info]) => {
+    const card = document.createElement("div");
+    card.className = "facility-card";
+
+    const title = document.createElement("div");
+    title.className = "facility-card-title";
+    title.textContent = info.title || key;
+
+    const meta = document.createElement("div");
+    meta.className = "facility-card-meta";
+    meta.textContent = `Eco: ${info.eco ?? "—"} · Visitor: ${info.joy ?? "—"}`;
+
+    const text = document.createElement("p");
+    text.className = "facility-card-text";
+    text.textContent = info.blurb || "";
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(text);
+    list.appendChild(card);
+  });
+}
+
+function setScoreTab(tab) {
+  document.querySelectorAll(".score-tab").forEach((t) => {
+    t.classList.toggle("score-tab--active", t.dataset.tab === tab);
+  });
+
+  document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
+    panel.classList.toggle("is-hidden", panel.dataset.tabPanel !== tab);
+  });
+}
+
 function setActiveTool(tool) {
   currentTool = tool;
 
@@ -689,6 +817,7 @@ function setActiveTool(tool) {
 
   toastAI(`Placing ${spec.label}. Watch the red/green rings before you click.`, "neutral");
   setPreviewRingsRadii(spec.redRadius, spec.greenRadius);
+  updateSelectedPanel(spec);
 }
 
 function setPreviewRingsRadii(redR, greenR) {
@@ -804,11 +933,56 @@ function placeFacility(latlng) {
   m.bindTooltip(`${spec.label}${inNoGo ? " (No-go!)" : ""}`, { direction: "top" });
 
   m.on("click", () => {
-    toastAI(`Selected: ${spec.label}. You can undo or clear from the dock.`, "neutral");
+    setSelectedPlacement(id);
+    toastAI(`Selected: ${spec.label}. You can remove it with the button below.`, "neutral");
   });
+  
 
-  placed.push({ id, type: spec.tool, latlng, inNoGo, marker: m, ecoDelta, joyDelta });
+  let redRing = null;
+  let greenRing = null;
 
+  if (spec.redRadius > 0) {
+    redRing = L.circle(latlng, {
+      radius: spec.redRadius,
+      color: "rgba(216,110,91,0.45)",
+      weight: 1.5,
+      dashArray: "6 6",
+      fillColor: "rgba(216,110,91,0.04)",
+      fillOpacity: 0.12,
+      interactive: false,
+    }).addTo(map);
+  }
+
+  if (spec.greenRadius > 0) {
+    greenRing = L.circle(latlng, {
+      radius: spec.greenRadius,
+      color: "rgba(156,191,123,0.55)",
+      weight: 1.5,
+      dashArray: "2 10",
+      fillColor: "rgba(156,191,123,0.03)",
+      fillOpacity: 0.10,
+      interactive: false,
+    }).addTo(map);
+  }
+
+  // Circle is below the layer
+  try {
+    if (redRing) redRing.bringToBack();
+    if (greenRing) greenRing.bringToBack();
+    m.bringToFront();
+  } catch (_) {}
+
+  placed.push({
+    id,
+    type: spec.tool,
+    latlng,
+    inNoGo,
+    marker: m,
+    ecoDelta,
+    joyDelta,
+    redRing,
+    greenRing,
+  });
   updateScoresUI();
 
   // Little "duang" on dock for positive feedback
@@ -833,6 +1007,8 @@ function undoLast() {
 
   // Remove marker
   try { map.removeLayer(last.marker); } catch (_) {}
+  try { if (last.redRing) map.removeLayer(last.redRing); } catch (_) {}
+  try { if (last.greenRing) map.removeLayer(last.greenRing); } catch (_) {}
 
   toastAI("Undone. Try another placement for a better balance.", "neutral");
   updateScoresUI();
@@ -841,11 +1017,13 @@ function undoLast() {
 function clearAll() {
   placed.forEach((p) => {
     try { map.removeLayer(p.marker); } catch (_) {}
+    try { if (p.redRing) map.removeLayer(p.redRing); } catch (_) {}
+    try { if (p.greenRing) map.removeLayer(p.greenRing); } catch (_) {}
   });
   placed.length = 0;
 
-  eco = 78;
-  joy = 62;
+  eco = 100;
+  joy = 0;
 
   toastAI("Cleared. Fresh canvas!");
   updateScoresUI();
@@ -1007,6 +1185,14 @@ async function init() {
   document.querySelectorAll(".tool-button[data-tool]").forEach((btn) => {
     btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
   });
+  
+  // Prevent dock clicks from triggering map placements underneath
+  const dock = document.querySelector(".dock");
+  if (dock && L?.DomEvent?.disableClickPropagation) {
+    L.DomEvent.disableClickPropagation(dock);
+    L.DomEvent.disableScrollPropagation(dock);
+  }
+  
   setActiveTool("lodge");
 
   // Undo / clear
@@ -1021,12 +1207,33 @@ async function init() {
 
   // View chips
   document.querySelectorAll('.ghost-chip[data-view]').forEach((chip) => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll('.ghost-chip[data-view]').forEach((c) => c.classList.remove("ghost-chip--active"));
-      chip.classList.add("ghost-chip--active");
-      setViewMode(chip.dataset.view);
-    });
+  chip.addEventListener("click", () => {
+    document
+      .querySelectorAll('.ghost-chip[data-view]')
+      .forEach((c) => c.classList.remove("ghost-chip--active"));
+    chip.classList.add("ghost-chip--active");
+
+    const view = chip.dataset.view;
+    setViewMode(view);
+
+    if (habitatLayer && map.hasLayer(habitatLayer)) {
+      map.removeLayer(habitatLayer);
+    }
+    if (trafficLayer && map.hasLayer(trafficLayer)) {
+      map.removeLayer(trafficLayer);
+    }
+
+    if (view === "habitat") {
+      if (!habitatLayer) buildHabitatOverlays();
+      habitatLayer?.addTo(map);
+    } else if (view === "traffic") {
+      buildTrafficOverlays();        
+      trafficLayer?.addTo(map);
+    }
+
+    applyWildlifeVisibility(view);
   });
+});
 
   // Scenario changes (demo text only)
   $("scenario-select")?.addEventListener("change", (e) => {

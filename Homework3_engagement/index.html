@@ -99,17 +99,38 @@
                 <span class="tool-icon">🏨</span>
                 <span class="tool-label">Lodge</span>
               </button>
-              <button class="tool-button" data-tool="parking" data-eco="-10" data-joy="8" data-red-radius="5000" data-green-radius="4500" data-tooltip="Eco −10 · Joy +8">
-                <span class="tool-icon">🅿️</span>
-                <span class="tool-label">Parking</span>
+              <button class="tool-button" data-tool="activity" data-eco="-14" data-joy="20" data-red-radius="2500" data-green-radius="1500" data-tooltip="Eco −14 · Joy +20">
+                <span class="tool-icon">🎪</span>
+                <span class="tool-label">Activity</span>
               </button>
               <button class="tool-button" data-tool="restaurant" data-eco="-7" data-joy="10" data-red-radius="4200" data-green-radius="5200" data-tooltip="Eco −7 · Joy +10">
                 <span class="tool-icon">🍽️</span>
                 <span class="tool-label">Restaurant</span>
               </button>
+              <button class="tool-button" data-tool="camp" data-eco="-4" data-joy="6" data-red-radius="1000" data-green-radius="2000" data-tooltip="Eco −4 · Joy +6">
+                <span class="tool-icon">🔥</span>
+                <span class="tool-label">Camp</span>
+              </button>
+              <button class="tool-button" data-tool="shuttle" data-eco="6" data-joy="8" data-red-radius="0" data-green-radius="3000" data-tooltip="Eco +6 · Joy +8">
+                <span class="tool-icon">🚐</span>
+                <span class="tool-label">Shuttle</span>
+              </button>
+              <button class="tool-button" data-tool="parking" data-eco="-10" data-joy="8" data-red-radius="5000" data-green-radius="4500" data-tooltip="Eco −10 · Joy +8">
+                <span class="tool-icon">🅿️</span>
+                <span class="tool-label">Parking</span>
+              </button>
+              </button>
               <button class="tool-button" data-tool="view" data-eco="-1" data-joy="12" data-red-radius="2500" data-green-radius="8000" data-tooltip="Eco −1 · Joy +12">
                 <span class="tool-icon">👀</span>
                 <span class="tool-label">Viewpoint</span>
+              </button>
+              <button class="tool-button" data-tool="hide" data-eco="-5" data-joy="14" data-red-radius="1200" data-green-radius="3500" data-tooltip="Eco −5 · Joy +14">
+                <span class="tool-icon">🦒</span>
+                <span class="tool-label">Hide</span>
+              </button>
+              <button class="tool-button" data-tool="research" data-eco="10" data-joy="6" data-red-radius="800" data-green-radius="2500" data-tooltip="Eco +10 · Joy +6">
+                <span class="tool-icon">🔬</span>
+                <span class="tool-label">Research</span>
               </button>
 
               <div class="dock-split" aria-hidden="true"></div>
@@ -161,7 +182,7 @@
               </div>
             </div>
 
-            <div class="scores-body">
+            <div class="scores-body" data-tab-panel="overview">
               <div class="score-row">
                 <div class="score-label">Facilities placed</div>
                 <div class="score-value"><span id="placedCount">0</span></div>
@@ -196,8 +217,24 @@
                 <div class="selected-row"><span>Type</span><span id="selType">—</span></div>
                 <div class="selected-row"><span>Eco</span><span id="selEco">—</span></div>
                 <div class="selected-row"><span>Joy</span><span id="selJoy">—</span></div>
+                <div class="selected-desc" id="selDesc">Pick a tool to see what it does.</div>
                 <button id="btn-remove-selected" class="ghost-button" type="button" disabled>Remove</button>
               </div>
+            </div>
+
+            <div class="scores-body is-hidden" data-tab-panel="facilities">
+              <div class="score-block-title">Facilities</div>
+              <div id="facilityList" class="facility-list"></div>
+            </div>
+
+            <div class="scores-body is-hidden" data-tab-panel="routes">
+              <div class="score-block-title">Routes</div>
+              <p class="scenario-text">
+                Keep shuttles and access roads on existing corridors to reduce new disturbance. Space hubs 3–5 km apart so visitors can cover them in a day.
+              </p>
+              <p class="scenario-text">
+                In Habitat view, check wildlife tracks and avoid red impact rings overlapping core zones. Cluster parking + restaurants to cut traffic loops.
+              </p>
             </div>
           </section>
 

@@ -43,7 +43,7 @@ body {
 
 .app-frame {
   height: calc(100vh - 20px);
-  max-width: 1320px;
+  max-width: 1620px;
   margin: 0 auto;
   background: var(--bg-frame);
   border-radius: var(--radius-large);
@@ -578,6 +578,8 @@ body {
   font-family: "Nunito", system-ui, sans-serif;
 }
 
+.is-hidden { display: none !important; }
+
 .score-row {
   display: flex;
   justify-content: space-between;
@@ -637,6 +639,62 @@ body {
   font-size: 0.78rem;
   color: var(--text-muted);
   font-family: "Nunito", system-ui, sans-serif;
+}
+
+.selected-desc {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fdf6ea;
+  border: 1px solid #e7d5b6;
+  color: var(--text-muted);
+  line-height: 1.35;
+  font-size: 0.75rem;
+}
+
+.facility-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.facility-card {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid #e3d3b3;
+  background: #fef8ed;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+}
+
+.facility-card-title {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--accent-brown);
+  margin: 0 0 2px 0;
+}
+
+.facility-card-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 4px 0;
+}
+
+.facility-card-text {
+  font-size: 0.75rem;
+  color: var(--text-main);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.selected-desc {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fdf6ea;
+  border: 1px solid #e7d5b6;
+  color: var(--text-muted);
+  line-height: 1.35;
+  font-size: 0.75rem;
 }
 
 /* Leaflet control styling */
@@ -751,4 +809,3 @@ body {
   .side-panel { max-height: none; }
   .ai-critic { bottom: 86px; }
 }
-
