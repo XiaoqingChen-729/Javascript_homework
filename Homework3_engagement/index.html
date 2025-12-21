@@ -35,8 +35,6 @@
         </div>
 
         <div class="top-bar-right">
-          <button class="top-icon-button" aria-label="Settings">⚙️</button>
-          <button class="top-icon-button" aria-label="Help">❓</button>
           <button id="btn-save-design" class="primary-chip">Save Design</button>
         </div>
       </header>
@@ -190,6 +188,7 @@
 
               <div class="score-block">
                 <div class="score-block-title">Design summary</div>
+                <p class="facility-prompt" id="facilityPrompt">Please choose the facility you want to build.</p>
 
                 <div class="meter-row">
                   <span>Conservation impact</span>
@@ -274,6 +273,12 @@
   </div>
 
   <!-- App JS (supports either ./js/main.js or ./main.js) -->
-  <script id="app-js" src="./js/main.js" defer onerror="this.onerror=null;this.src='./main.js';"></script>
+  <script
+  id="app-js"
+  type="module"
+  src="./js/main.js"
+  defer
+  onerror="this.onerror=null;this.src='./main.js';"
+></script>
 </body>
 </html>

@@ -1,17 +1,25 @@
-/*
-  Mara–Serengeti Design Studio (single-page web app)
-  - Full "workbench" canvas map (Leaflet)
-  - Floating toolbox dock with tooltips
-  - HUD gauges (Eco-Health / Visitor Joy) with realtime micro-feedback
-  - Influence radius rings (red = impact, green = view)
-  - No-go zones w/ hatched fill
-  - Cute AI critic bubble (Ranger Leo)
-  - Save Design -> narrative brief (dialog)
+// Firebase 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
-  Notes:
-  - Tries to load Leaflet from CDN if it's not already present.
-  - Works when files are in root OR in /css + /js.
-*/
+const firebaseConfig = {
+  apiKey: "AIzaSyC9c5DQriKjG-COIFiqnbIMNSZ7Up1CEZ0",
+  authDomain: "mara-serengeti-studio.firebaseapp.com",
+  projectId: "mara-serengeti-studio",
+  storageBucket: "mara-serengeti-studio.firebasestorage.app",
+  messagingSenderId: "642513419758",
+  appId: "1:642513419758:web:5c2d5335e81d2569bda2ff",
+  measurementId: "G-E93T6RYRE2",
+};
+
+const app = initializeApp(firebaseConfig);
+
+export const db = getFirestore(app);
 
 // -----------------------------
 // Utilities
@@ -98,6 +106,7 @@ async function ensureLeaflet() {
 
 let map = null;
 let currentTool = "lodge";
+let hasUserChosenTool = false;
 let activeTileLayer = null;
 
 let eco = 100;
@@ -134,38 +143,56 @@ const TOOL_INFO = {
   lodge: {
     title: "Lodge",
     blurb: "Purpose: overnight stays and a base for safaris. Impact: medium footprint—keep outside core habitats. Visitor: high comfort.",
+    eco: -6,
+    joy: 4,
   },
   activity: {
     title: "Activity",
     blurb: "Purpose: guided experiences (walks, crafts, culture). Impact: keep group size/paths limited to avoid wildlife stress. Visitor: memorable if near viewpoints.",
+    eco: -14,
+    joy: 20,
   },
   parking: {
     title: "Parking",
     blurb: "Purpose: staging for shuttles and day trips. Impact: can fragment habitat—cluster with restaurants/lodges to reduce sprawl.",
+    eco: -10,
+    joy: 8,
   },
   restaurant: {
     title: "Restaurant",
     blurb: "Purpose: meals and rest stops. Impact: service traffic and waste—site near roads, away from wildlife corridors.",
+    eco: -7,
+    joy: 10,
   },
   camp: {
     title: "Camp",
     blurb: "Purpose: low-impact overnight stay. Impact: smaller footprint but needs buffer from wildlife routes. Visitor: immersive if placed responsibly.",
+    eco: -4,
+    joy: 6,
   },
   shuttle: {
     title: "Shuttle",
     blurb: "Purpose: move guests efficiently between hubs. Impact: reduces private car traffic; keep routes on existing roads to protect habitats.",
+    eco: 6,
+    joy: 8,
   },
   view: {
     title: "Viewpoint",
     blurb: "Purpose: quiet wildlife viewing spot. Impact: light footprint if off-road travel is limited. Visitor: big joy boost near water/habitats.",
+    eco: -1,
+    joy: 12,
   },
   hide: {
     title: "Hide",
     blurb: "Purpose: concealed wildlife viewing. Impact: minimal if entry paths are controlled; excellent visitor experience when near water/cover.",
+    eco: -5,
+    joy: 14,
   },
   research: {
     title: "Research",
     blurb: "Purpose: monitoring and science. Impact: moderate but justified—site near access to reduce patrol disturbance; supports conservation outcomes.",
+    eco: 10,
+    joy: 6,
   },
 };
 
@@ -439,8 +466,7 @@ lionTracksLayer = buildTracksFromPoints(lionPoints, {
   labelPrefix: "Lion",
 });
 
-    // 3) fit bounds to both boundaries (optional but nice)
-    geoDataLoaded = true;
+    // 3) fit bounds to both boundaries
 
      const mode = document.getElementById("map")?.dataset?.mode || "design";
 
@@ -773,8 +799,21 @@ function renderFacilityList() {
   list.innerHTML = "";
 
   Object.entries(TOOL_INFO).forEach(([key, info]) => {
+    const spec = getToolSpec(key);
+    if (!spec) return;
+
+    const ecoText = spec.ecoDelta >= 0 ? `+${spec.ecoDelta}` : `${spec.ecoDelta}`;
+    const joyText = spec.joyDelta >= 0 ? `+${spec.joyDelta}` : `${spec.joyDelta}`;
+
     const card = document.createElement("div");
     card.className = "facility-card";
+    card.dataset.tool = key;
+    if (currentTool === key) card.classList.add("facility-card--active");
+    card.addEventListener("click", () => {
+      setActiveTool(key);
+      // Focus stays in the side panel; toast provides feedback
+      toastAI(`Preparing to build ${spec.label}.`, "neutral");
+    });
 
     const title = document.createElement("div");
     title.className = "facility-card-title";
@@ -782,7 +821,7 @@ function renderFacilityList() {
 
     const meta = document.createElement("div");
     meta.className = "facility-card-meta";
-    meta.textContent = `Eco: ${info.eco ?? "—"} · Visitor: ${info.joy ?? "—"}`;
+    meta.textContent = `Eco: ${ecoText} · Visitor: ${joyText}`;
 
     const text = document.createElement("p");
     text.className = "facility-card-text";
@@ -795,6 +834,22 @@ function renderFacilityList() {
   });
 }
 
+const FACILITY_PROMPT_DEFAULT = "Please choose the facility you want to build.";
+
+function updateFacilityPrompt(spec = null) {
+  const prompt = $("facilityPrompt");
+  if (!prompt) return;
+
+  if (!spec) {
+    prompt.textContent = FACILITY_PROMPT_DEFAULT;
+    return;
+  }
+
+  const info = TOOL_INFO[spec.tool] || {};
+  const desc = info.blurb || "Place thoughtfully to balance eco and joy.";
+  prompt.textContent = `Preparing to build ${spec.label}: ${desc}`;
+}
+
 function setScoreTab(tab) {
   document.querySelectorAll(".score-tab").forEach((t) => {
     t.classList.toggle("score-tab--active", t.dataset.tab === tab);
@@ -803,9 +858,20 @@ function setScoreTab(tab) {
   document.querySelectorAll("[data-tab-panel]").forEach((panel) => {
     panel.classList.toggle("is-hidden", panel.dataset.tabPanel !== tab);
   });
+
+  if (tab === "facilities") {
+    const spec = getToolSpec(currentTool);
+    if (hasUserChosenTool && spec) {
+      updateFacilityPrompt(spec);
+    } else {
+      updateFacilityPrompt();
+    }
+  }
 }
 
-function setActiveTool(tool) {
+function setActiveTool(tool, opts = {}) {
+  const { userInitiated = true, skipPrompt = false } = opts;
+  if (userInitiated) hasUserChosenTool = true;
   currentTool = tool;
 
   document.querySelectorAll(".tool-button[data-tool]").forEach((b) => {
@@ -818,6 +884,8 @@ function setActiveTool(tool) {
   toastAI(`Placing ${spec.label}. Watch the red/green rings before you click.`, "neutral");
   setPreviewRingsRadii(spec.redRadius, spec.greenRadius);
   updateSelectedPanel(spec);
+  updateFacilityPrompt(spec);
+  renderFacilityList();
 }
 
 function setPreviewRingsRadii(redR, greenR) {
@@ -1183,9 +1251,21 @@ async function init() {
 
   // Dock tools
   document.querySelectorAll(".tool-button[data-tool]").forEach((btn) => {
-    btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
+    btn.addEventListener("click", () => setActiveTool(btn.dataset.tool, { userInitiated: true }));
   });
   
+// Score tab switching
+  document.querySelectorAll(".score-tab").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab || "overview";
+      setScoreTab(tab);
+      if (tab === "facilities") renderFacilityList();
+    });
+  });
+
+  setScoreTab("overview");
+  renderFacilityList();
+
   // Prevent dock clicks from triggering map placements underneath
   const dock = document.querySelector(".dock");
   if (dock && L?.DomEvent?.disableClickPropagation) {
@@ -1193,7 +1273,7 @@ async function init() {
     L.DomEvent.disableScrollPropagation(dock);
   }
   
-  setActiveTool("lodge");
+  setActiveTool("lodge", { userInitiated: false, skipPrompt: true });
 
   // Undo / clear
   $("btn-undo")?.addEventListener("click", undoLast);
@@ -1258,7 +1338,10 @@ async function init() {
   });
 
   // Save brief
-  $("btn-save-design")?.addEventListener("click", openBrief);
+  $("btn-save-design")?.addEventListener("click", () => {
+  openBrief();
+  saveBlueprintToFirebase();
+});
   $("btn-close-brief")?.addEventListener("click", closeBrief);
   $("btn-ok-brief")?.addEventListener("click", closeBrief);
   $("btn-copy-brief")?.addEventListener("click", copyBrief);
@@ -1283,3 +1366,35 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+async function saveBlueprintToFirebase() {
+  const ecoScore = Math.round(eco);
+  const joyScore = Math.round(joy);
+
+  const total = placed.length || 1;
+  const inNoGoCount = placed.filter((p) => p.inNoGo).length;
+  const noGoRate = Math.round((inNoGoCount / total) * 100);
+
+  const facilities = placed.map((p) => ({
+    type: p.type,
+    lat: p.latlng.lat,
+    lng: p.latlng.lng,
+    ecoDelta: p.ecoDelta,
+    joyDelta: p.joyDelta,
+    inNoGo: p.inNoGo,
+  }));
+
+  try {
+    await addDoc(collection(db, "designs"), {
+      createdAt: serverTimestamp(),
+      ecoScore,
+      joyScore,
+      noGoRate,
+      facilities,
+    });
+    toastAI("Saved to Firebase", "good");
+  } catch (err) {
+    console.error("Failed to save blueprint", err);
+    toastAI("Oops, failed to save to Firebase. Check console.", "error");
+  }
+}
